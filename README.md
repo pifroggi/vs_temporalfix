@@ -16,9 +16,8 @@
 
 
 
-
-# Vapoursynth function to add Temporal Coherence to AI Upscales
-Also known as temporal consistency, stabilization, line wiggle removal, remove dancing details, temporal denoising, or temporal fix.  
+# Add Temporal Coherence to Single Image AI Upscaling Models in Vapoursynth
+Also known as temporal consistency, stabilization, line wiggle removal, temporal denoising, or temporal fix.  
 This will not add extra work to the upscaling on the GPU and instead run in parallel on the CPU.  
 Intended for animation.
 
@@ -33,7 +32,7 @@ Intended for animation.
 __Windows__: download and add dll to PATH  
 __Linux__: compile from source or `apt install libfftw3-3`
 * [mvtools](https://github.com/dubhater/vapoursynth-mvtools) (release r24 or newer)
-* [mvtools-sf](https://github.com/IFeelBloated/vapoursynth-mvtools-sf) (optional, only for radius > 6)
+* [mvtools-sf](https://github.com/IFeelBloated/vapoursynth-mvtools-sf) (optional, only for tr > 6)
 * [temporalmedian](https://github.com/dubhater/vapoursynth-temporalmedian)
 * [motionmask](https://github.com/dubhater/vapoursynth-motionmask)
 * [fillborders](https://github.com/dubhater/vapoursynth-fillborders)
@@ -52,20 +51,19 @@ Temporally unstable clip. Should have no black borders.
 Must be in YUV or GRAY format. Full range (PC) input is recommended.
 
 __*`strength`*__  
-Suppression strength of temporal inconsistencies. Higher means more aggressive. Has no influence on processing speed.  
-400 works great in many cases.  
-The best way to check is to find a static scene and increase this till details, lines and textures are all stable.  
-If you get ghosting/blending on small movements or blocky artifacts, reduce this.
+Suppression strength of temporal inconsistencies. Higher means more aggressive. No influence on processing speed.  
+The best way to check is to find a static scene and increase this till details, lines and textures are stable.  
+400 works great in many cases. If you get ghosting/blending on small movements or blocky artifacts, reduce this.
 
 __*`tr`*__  
-Temporal radius sets how many frames will be included in the calculation. Higher means more stable. This influences processing speed.  
-6 works great in many cases.  
+Temporal radius sets the number of frames for the averaging. Higher means more stable. Influences processing speed.  
 The best way to check is to find a slow pan or zoom and increase this till details, lines and textures are all stable.  
-There is no downside to increasing this further, other than processing speed and RAM usage.
+6 works great in many cases. There is no downside to increasing this further, other than speed and RAM usage.
 
 __*`exclusion`* (optional)__  
-While this is often not needed, sometimes there are scenes with intended temporal inconsistencies (like TV static noise), or this just doesn't want to work. Set them here.  
-Example setting 3 scenes: `exclude="[100 400] [600 900] [2000 2500]"` First number is the first frame of the scene, second number is the last frame (inclusive).
+Optinoally exclude scenes with intended temporal inconsistencies (like TV noise).  
+Example setting 3 scenes: `exclude="[100 400] [600 900] [2000 2500]"`  
+First number is the first frame of the scene, second number is the last frame (inclusive).
 
 __*`debug`* (optional)__  
 Shows protected regions, scene changes and exclusions in pink (white if clip is gray) half transparent on top of the clip.
