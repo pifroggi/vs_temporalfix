@@ -17,8 +17,9 @@
 
 
 # Add Temporal Coherence to Single Image AI Upscaling Models in Vapoursynth
-Also known as temporal consistency, stabilization, line wiggle removal, temporal denoising, or temporal fix.  
-This will not add extra work to the upscaling on the GPU and instead run in parallel on the CPU.  
+Also known as temporal consistency, stabilization, line wiggle fix, temporal denoising, or temporal fix.  
+This will not add extra work to the upscaling on the GPU and instead run in parallel on the CPU.
+
 Intended for animation.
 
 <p align="center">
@@ -57,7 +58,7 @@ The best way to check is to find a static scene and increase this till details, 
 
 __*`tr`*__  
 Temporal radius sets the number of frames for the averaging. Higher means more stable. Influences processing speed.  
-The best way to check is to find a slow pan or zoom and increase this till details, lines and textures are all stable.  
+The best way to check is to find a slow pan or zoom and increase this till details, lines and textures are stable.  
 6 works great in many cases. There is no downside to increasing this further, other than speed and RAM usage.
 
 __*`exclusion`* (optional)__  
@@ -70,7 +71,7 @@ Shows protected regions, scene changes and exclusions in pink (white if clip is 
 
 ## Tips
 * Make sure to check very dark, hazy, or faint scenes for ghosting/blending and reduce strength if necessary.
-* If your fps numbers are vastly slower than the benchmarks would suggest, try allowing vapoursynth to use more RAM by adding this near the top of you script `core.max_cache_size = 20000` (20gb, adjust as needed). RAM requirements are influenced by tr and resolution.
+* If fps are much slower than the benchmarks would suggest, try increasing Vapoursynth RAM by adding `core.max_cache_size = 20000` near the top of your script. (20GB, adjust as needed) RAM usage depends on tr and resolution.
 * There is a big drop in performance for tr > 6, due to switching from mvtools to mvtools-sf, which is slower.
 * mvtools-sf release r9 and the r10 pre-release will both work, but r9 is faster for me.
 
