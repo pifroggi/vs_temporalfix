@@ -18,9 +18,9 @@
 
 # Add Temporal Coherence to Single Image AI Upscaling Models in Vapoursynth
 Also known as temporal consistency, line wiggle fix, stabilization, temporal denoising, or temporal fix.  
-This will not add extra work to the upscaling on the GPU and instead run in parallel on the CPU.
-
 Intended for animation.
+
+This will not add extra work to the upscaling on the GPU and instead run in parallel on the CPU.  
 
 <p align="center">
     <img src="README_example.gif"/>
@@ -45,7 +45,7 @@ Intended for animation.
 ## Usage
 
     from vs_temporalfix import vs_temporalfix
-    clip = vs_temporalfix(clip, strength=400, tr=6, exclude=None, debug=False)
+    clip = vs_temporalfix(clip, strength=400, tr=6, exclude="[100 150]", debug=False)
 
 __*`clip`*__  
 Temporally unstable clip. Should have no black borders.  
@@ -61,10 +61,10 @@ Temporal radius sets the number of frames for averaging. Higher means more stabl
 The best way to check is to find a slow pan or zoom and increase this till details, lines and textures are stable.  
 6 works great in many cases. There is no downside to increasing this further, other than speed and RAM usage.
 
-__*`exclusion`* (optional)__  
-Optionally exclude scenes with intended temporal inconsistencies (like TV noise).  
-Example setting 3 scenes: `exclude="[100 400] [600 900] [2000 2500]"`  
-First number is the first frame of the scene, second number is the last frame (inclusive).
+__*`exclude`* (optional)__  
+Optionally exclude scenes with intended temporal inconsistencies (like TV noise), or in case this doesn work.  
+Example setting 3 scenes: `exclude="[100 150] [600 900] [2000 2500]"`  
+First number in the brackets is the first frame of the scene, the second number is the last frame (inclusive).
 
 __*`debug`* (optional)__  
 Shows protected regions, scene changes and exclusions in pink half transparent on top of the clip.
