@@ -32,7 +32,7 @@ This will not add extra work to the upscaling on the GPU and instead run in para
 * [fftw3.3](http://www.fftw.org/download.html) (required by mvtools)  
     __Windows__: download and add dll to PATH  
     __Linux__: compile from source or `apt install libfftw3-3`
-* [mvtools](https://github.com/dubhater/vapoursynth-mvtools) (release r24 or newer)
+* [mvtools](https://github.com/dubhater/vapoursynth-mvtools) (release v24 or newer)
 * [mvtools-sf](https://github.com/IFeelBloated/vapoursynth-mvtools-sf) (optional, only for tr > 6)
 * [temporalmedian](https://github.com/dubhater/vapoursynth-temporalmedian)
 * [motionmask](https://github.com/dubhater/vapoursynth-motionmask)
@@ -57,27 +57,28 @@ The best way to check is to find a static scene and increase this till details, 
 400 works great in many cases. If you get ghosting/blending on small movements or blocky artifacts, reduce this.
 
 __*`tr`*__  
-Temporal radius sets the number of frames for averaging. Higher means more stable. Influences processing speed.  
+Temporal radius sets the number of frames to average over. Higher means more stable. Influences processing speed.  
 The best way to check is to find a slow pan or zoom and increase this till details, lines and textures are stable.  
 6 works great in many cases. There is no downside to increasing this further, other than speed and RAM usage.
 
 __*`exclude`* (optional)__  
-Optionally exclude scenes with intended temporal inconsistencies (like TV noise), or in case this doesn work.  
+Optionally exclude scenes with intended temporal inconsistencies (like TV noise), or in case this doesn't work.  
 Example setting 3 scenes: `exclude="[100 150] [600 900] [2000 2500]"`  
 First number in the brackets is the first frame of the scene, the second number is the last frame (inclusive).
 
 __*`debug`* (optional)__  
-Shows protected regions, scene changes and exclusions in pink half transparent on top of the clip.
+Shows protected areas, scene changes and exclusions in pink half transparent on top of the clip.
+Protected areas have motions that are large enough to exclude from processing. This avoids blending and ghosting.
 
 ## Tips
 * Make sure to check very dark, hazy, or faint scenes for ghosting/blending and reduce strength if necessary.
-* If fps are much slower than benchmarks would suggest, try increasing Vapoursynth's RAM by adding `core.max_cache_size = 20000` (20GB) near the top of your script. RAM usage depends on tr and resolution.
+* If fps are much lower than the benchmarks would suggest, try increasing Vapoursynth's RAM cache by adding `core.max_cache_size = 20000` (20GB, adjust if needed) near the top of your script. RAM requirements depend on tr and resolution.
 * There is a big drop in performance for tr > 6, due to switching from mvtools to mvtools-sf, which is slower.
 * mvtools-sf release r9 and the r10 pre-release will both work, but r9 is faster for me.
 
 ## Benchmarks
 
-| Hardware    | Resolution        | tr | Average FPS
-| ----------- | ----------------- | -- | -----------        
-| Ryzen 5900X | 1440x1080 (1080p) | 6  | ~7 fps
-| Ryzen 5900X | 2880x2160 (4k)    | 6  | ~4 fps
+| Hardware    | Resolution | Tr | Average FPS
+| ----------- | ---------- | -- | -----------
+| Ryzen 5900X | 1440x1080  | 6  | ~7 fps
+| Ryzen 5900X | 2880x2160  | 6  | ~4 fps
