@@ -45,7 +45,7 @@ def ExcludeRegions(clip, replacement, exclude=None):
     #which is a port of ReplaceFramesSimple by James D. Lin http://avisynth.nl/index.php/RemapFrames
     import re
     if not isinstance(exclude, str):
-        raise TypeError('Exclusions are set like this: exclude="[100 400] [600 900] [2000 2500]", where the first number is the start frame and the second the end frame (inclusive).')
+        raise TypeError('Exclusions are set like this: exclude="[100 300] [600 900] [2000 2500]", where the first number in the brackets is the start frame and the second is the end frame (inclusive).')
     
     exclude = exclude.replace(',', ' ').replace(':', ' ')
     frames = re.findall(r'\d+(?!\d*\s*\d*\s*\d*\])', exclude)
@@ -75,7 +75,7 @@ def ExcludeRegions(clip, replacement, exclude=None):
 
 def DegrainPrefilter(clip, thsad=250):
     #based on SpotLess function from G41Fun https://github.com/Vapoursynth-Plugins-Gitify/G41Fun
-    #which was modified from lostfunc: https://github.com/theChaosCoder/lostfunc/blob/v1/lostfunc.py#L10
+    #which was modified from lostfunc https://github.com/theChaosCoder/lostfunc/blob/v1/lostfunc.py#L10
     #which was a port of Didée's original avisynth function https://forum.doom9.org/showthread.php?p=1402690
 
     A = core.mv.Analyse
@@ -86,7 +86,7 @@ def DegrainPrefilter(clip, thsad=250):
     #first pass with temporal median
     bs = 128 #large blocksize to reduce warping
     pel = 1
-    sup = S(clip, pel=pel, sharp=1, rfilter=4)
+    sup = S(clip, pel=pel, sharp=1, rfilter=4, hpad=bs//2, vpad=bs//2)
     analyse_args = dict(blksize=bs, overlap=bs//2, search=4, searchparam=2)
     bv1 = A(sup, isb=True,  delta=1, **analyse_args)
     fv1 = A(sup, isb=False, delta=1, **analyse_args)
@@ -185,7 +185,7 @@ def vs_temporalfix(clip, strength=400, tr=6, exclude=None, debug=False):
 
     #compensate next frame for motionmask so that it works on pans and zooms
     motionmask_pref = core.resize.Bilinear(pre_stabilize, format=vs.GRAY8)
-    motionmask_super = core.mv.Super(motionmask_pref, pel=2, sharp=1, rfilter=4)
+    motionmask_super = core.mv.Super(motionmask_pref, pel=2, sharp=1, rfilter=4, hpad=64, vpad=64)
     motionmask_vectors = core.mv.Analyse(motionmask_super, isb=False, delta=1, blksize=128, overlap=64, search=5)
     motionmask_window = core.mv.Compensate(motionmask_pref, motionmask_super, motionmask_vectors, thsad=200000, thscd1=1000, thscd2=1000)
     motionmask_window = core.std.Interleave([motionmask_window, motionmask_pref])
@@ -242,12 +242,11 @@ def vs_temporalfix(clip, strength=400, tr=6, exclude=None, debug=False):
             prefilter = core.resize.Bicubic(prefilter, width=clip.width, height=clip.height)
 
     #superclip
-    super_args = dict(hpad=blksize, vpad=blksize, pel=pel)
     if pel > 1:
-        super_search = S(prefilter, chroma=chroma, rfilter=4, pelclip=pelclip, **super_args)
+        super_search = S(prefilter, chroma=chroma, rfilter=4, pelclip=pelclip, pel=pel)
     else:
-        super_search = S(prefilter, chroma=chroma, rfilter=4, sharp=1, **super_args)
-    super_render = S(clip, chroma=chroma, rfilter=1, sharp=subpixel, levels=1, **super_args)
+        super_search = S(prefilter, chroma=chroma, rfilter=4, sharp=1, pel=pel)
+    super_render = S(clip, chroma=chroma, rfilter=1, sharp=subpixel, levels=1, pel=pel)
 
     #analyze
     analyse_args = dict(blksize=blksize, search=search, chroma=chroma, truemotion=truemotion, global_=MVglobal, overlap=overlap, dct=DCT, searchparam=searchparam, fields=False)
