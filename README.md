@@ -45,7 +45,7 @@ This will not add extra work to the upscaling on the GPU and instead run in para
 ## Usage
 
     from vs_temporalfix import vs_temporalfix
-    clip = vs_temporalfix(clip, strength=400, tr=6, exclude="[100 150]", debug=False)
+    clip = vs_temporalfix(clip, strength=400, tr=6, exclude="[10 20]", debug=False)
 
 __*`clip`*__  
 Temporally unstable clip. Should have no black borders.  
@@ -63,14 +63,14 @@ The best way to check is to find a slow pan or zoom and increase this till detai
 
 __*`exclude`* (optional)__  
 Optionally exclude scenes with intended temporal inconsistencies (like TV noise), or in case this doesn't work.  
-Example setting 3 scenes: `exclude="[100 150] [600 900] [2000 2500]"`  
+Example setting 3 scenes: `exclude="[10 20] [600 900] [2000 2500]"`  
 First number in the brackets is the first frame of the scene, the second number is the last frame (inclusive).
 
 __*`debug`* (optional)__  
 Shows protected areas, scene changes and exclusions in pink half transparent on top of the clip.
 Protected areas have motions that are large enough to exclude from processing. This avoids blending and ghosting.
 
-## Tips
+## Tips & Troubleshooting
 * Make sure to check very dark, hazy, or faint scenes for ghosting/blending and reduce strength if necessary.
 * If fps are much lower than the benchmarks would suggest, try increasing Vapoursynth's RAM cache by adding `core.max_cache_size = 20000` (20GB, adjust if needed) near the top of your script. RAM requirements depend on tr and resolution.
 * There is a big drop in performance for tr > 6, due to switching from mvtools to mvtools-sf, which is slower.
@@ -78,7 +78,7 @@ Protected areas have motions that are large enough to exclude from processing. T
 
 ## Benchmarks
 
-| Hardware    | Resolution | Tr | Average FPS
+| Hardware    | Resolution | TR | Average FPS
 | ----------- | ---------- | -- | -----------
 | Ryzen 5900X | 1440x1080  | 6  | ~7 fps
 | Ryzen 5900X | 2880x2160  | 6  | ~4 fps
