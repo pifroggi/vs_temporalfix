@@ -30,8 +30,8 @@ This will not add extra work to the upscaling on the GPU and instead run in para
 
 ## Requirements
 * [fftw3.3](http://www.fftw.org/download.html) (required by mvtools)  
-    __Windows__: download and add dll to PATH  
-    __Linux__: compile from source or `apt install libfftw3-3`
+    __Windows__: download and add dlls to PATH  
+    __Linux__: `apt install libfftw3-3` or compile from source
 * [mvtools](https://github.com/dubhater/vapoursynth-mvtools) (release v24 or newer)
 * [mvtools-sf](https://github.com/IFeelBloated/vapoursynth-mvtools-sf) (optional, only for tr > 6)
 * [temporalmedian](https://github.com/dubhater/vapoursynth-temporalmedian)
@@ -54,7 +54,7 @@ Must be in YUV or GRAY format. Full range (PC) input is recommended.
 __*`strength`*__  
 Suppression strength of temporal inconsistencies. Higher means more aggressive. No influence on processing speed.  
 The best way to check is to find a static scene and increase this till details, lines and textures are stable.  
-400 works great in many cases. If you get ghosting/blending on small movements or blocky artifacts, reduce this.
+400 works great in many cases. If you get blending/ghosting on small movements or blocky artifacts, reduce this.
 
 __*`tr`*__  
 Temporal radius sets the number of frames to average over. Higher means more stable. Influences processing speed.  
@@ -68,10 +68,10 @@ First number in the brackets is the first frame of the scene, the second number 
 
 __*`debug`* (optional)__  
 Shows protected areas, scene changes and exclusions in pink half transparent on top of the clip.
-Protected areas have motions that are large enough to exclude from processing. This avoids blending and ghosting.
+Protected areas have motions that are large enough to exclude from processing. This avoids blending/ghosting.
 
 ## Tips & Troubleshooting
-* Make sure to check very dark, hazy, or faint scenes for ghosting/blending and reduce strength if necessary.
+* Make sure to check very dark, hazy, or faint scenes for blending/ghosting and reduce strength if necessary.
 * If fps are much lower than the benchmarks would suggest, try increasing Vapoursynth's RAM cache by adding `core.max_cache_size = 20000` (20GB, adjust if needed) near the top of your script. RAM requirements depend on tr and resolution.
 * There is a big drop in performance for tr > 6, due to switching from mvtools to mvtools-sf, which is slower.
 * mvtools-sf release r9 and the r10 pre-release will both work, but r9 is faster for me.
