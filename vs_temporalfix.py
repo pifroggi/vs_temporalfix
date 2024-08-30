@@ -129,7 +129,6 @@ def vs_temporalfix(clip, strength=400, tr=6, exclude=None, debug=False):
     h = clip.height
     original_format = clip.format
     isGRAY = clip.format.color_family == vs.GRAY
-    mvsflegacy = not hasattr(core.mvsf, 'Degrain') #true is plugin version r9 or older, false is r10 pre-release or newer
     S = core.mvsf.Super if mvtr > 6 else core.mv.Super
     A = core.mv.Analyse
     R = core.mv.Recalculate
@@ -166,6 +165,8 @@ def vs_temporalfix(clip, strength=400, tr=6, exclude=None, debug=False):
     truemotion = False
     if pel < 2:
         subpixel = min(subpixel, 2)
+    if mvtr > 6:
+        mvsflegacy = not hasattr(core.mvsf, 'Degrain') #true is plugin version r9 or older, false is r10 pre-release or newer
 
 
 
