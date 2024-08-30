@@ -30,7 +30,7 @@ This will not add extra work to the upscaling on the GPU and instead run in para
 
 ## Requirements
 * [fftw3.3](http://www.fftw.org/download.html) (required by mvtools)  
-    __Windows__: download and put `.dll` files in plugin folder  
+    __Windows__: download and put `.dll` files in plugin folder or add to windows PATH  
     __Linux__: `apt install libfftw3-3 libfftw3-dev` or compile from source
 * [mvtools](https://github.com/dubhater/vapoursynth-mvtools) (release v24 or newer)
 * [mvtools-sf](https://github.com/IFeelBloated/vapoursynth-mvtools-sf) (optional, only for tr > 6)
