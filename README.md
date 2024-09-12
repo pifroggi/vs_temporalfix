@@ -42,6 +42,10 @@ This will not add extra work to the upscaling on the GPU and instead run in para
 * [ctmf](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-CTMF)
 * [rgvs](https://github.com/vapoursynth/vs-removegrain)
 
+## Setup
+Put the `vs_temporalfix.py` file into your vapoursynth scripts folder.  
+Or install via pip: `pip install git+https://github.com/pifroggi/vs_temporalfix.git`
+
 ## Usage
 
     from vs_temporalfix import vs_temporalfix
