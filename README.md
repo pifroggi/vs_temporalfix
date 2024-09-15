@@ -76,10 +76,12 @@ Protected areas have motions that are large enough to exclude from processing. T
 
 ## Tips & Troubleshooting
 > [!CAUTION]
-> * If fps are lower than the benchmarks suggest, try increasing Vapoursynth's RAM cache by adding `core.max_cache_size = 20000` (20GB) near the top of your script. RAM requirements depend on tr and resolution, increase if needed.
-* There is a big drop in performance for tr > 6, due to switching from mvtools to mvtools-sf, which is slower.
-* mvtools-sf release r9 and the r10 pre-release will both work, but r9 is faster for me.
-* Make sure to check very dark, hazy, or faint scenes for blending/ghosting and reduce strength if necessary.  
+> * If fps are much lower than the benchmarks, try adding `core.max_cache_size = 20000` (20GB) near the top of your vapoursynth script to increase RAM cache. For high tr or resolution, increase further if needed.
+
+> [!TIP]
+> * There is a big drop in performance for tr > 6, due to switching from mvtools to mvtools-sf, which is slower.
+> * mvtools-sf release r9 and the r10 pre-release will both work, but r9 is faster for me.
+> * Make sure to check very dark, hazy, or faint scenes for blending/ghosting and reduce strength if necessary.  
 
 ## Benchmarks
 
