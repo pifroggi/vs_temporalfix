@@ -18,9 +18,12 @@
 
 # Add Temporal Coherence to Single Image AI Upscaling Models in Vapoursynth
 Also known as temporal consistency, line wiggle fix, stabilization, temporal denoising, or temporal fix.  
+This will not add extra work to the upscaling on the GPU and instead run in parallel on the CPU.  
 Intended for animation.
 
-This will not add extra work to the upscaling on the GPU and instead run in parallel on the CPU.  
+Comparisons (by hddvddegogo):  
+https://www.youtube.com/watch?v=BXc_Uddt2KA  
+https://www.youtube.com/watch?v=u6LHR9_m5rg  
 
 <p align="center">
     <img src="README_example.gif"/>
@@ -52,18 +55,17 @@ Or install via pip: `pip install git+https://github.com/pifroggi/vs_temporalfix.
     clip = vs_temporalfix(clip, strength=400, tr=6, exclude="[10 20]", debug=False)
 
 __*`clip`*__  
-Temporally unstable clip. Should have no black borders.  
-Must be in YUV or GRAY format. Full range (PC) input is recommended.
+Temporally unstable clip. Must be in YUV or GRAY format.  
+Should have no black borders. Full range (PC) input is recommended.
 
 __*`strength`*__  
-Suppression strength of temporal inconsistencies. Higher means more aggressive. No influence on processing speed.  
-The best way to check is to find a static scene and increase this till details, lines and textures are stable.  
-400 works great in many cases. If you get blending/ghosting on small movements or blocky artifacts, reduce this.
+Suppression strength of temporal inconsistencies. Higher means more aggressive. 400 works great in most cases.  
+The best way to finetune is to find a static scene and increase this till lines and details are stable.  
+Reduce if you get blending/ghosting on dark or hazy scenes.  
 
 __*`tr`*__  
-Temporal radius sets the number of frames to average over. Higher means more stable. Influences processing speed.  
-The best way to check is to find a slow pan or zoom and increase this till details, lines and textures are stable.  
-6 works great in many cases. There is no downside to increasing this further, other than speed and RAM usage.
+Temporal radius sets the number of frames to average over. Higher means more stable, especially on slow pans and zooms, but slower. 6 works great in most cases.  
+The best way to finetune is to find a slow pan or zoom and increase this till lines and details are stable.
 
 __*`exclude`* (optional)__  
 Optionally exclude scenes with intended temporal inconsistencies (like TV noise), or in case this doesn't work.  
@@ -71,17 +73,24 @@ Example setting 3 scenes: `exclude="[10 20] [600 900] [2000 2500]"`
 First number in the brackets is the first frame of the scene, the second number is the last frame (inclusive).
 
 __*`debug`* (optional)__  
-Shows protected areas, scene changes and exclusions in pink half transparent on top of the clip.
-Protected areas have motions that are large enough to exclude from processing. This avoids blending/ghosting.
+Shows protected areas that will be left untouched in pink. This includes areas with high motion, scene changes and excluded scenes. May help while tuning parameters to see if the area is even affected.
 
+## Alternative Usage
+Several projects have integrated this script to make it more easily usable without Vapoursynth knowledge.
+* [py_temporalfix](https://github.com/JepEtau/py_temporalfix) (Windows only)  
+  Simple portable command line tool to just do the temporal fix.
+* [Hybrid](https://www.selur.de/) (Windows only)  
+  Video filter toolbox with a GUI. Can be a bit overwhelming due to the amount of features, but can upscale and do the temporal fix at the same time, as well as many more filters.
+* [VSGAN-tensorrt-docker](https://github.com/styler00dollar/VSGAN-tensorrt-docker) (Windows and Linux)  
+  Command line AI upscale and interpolation toolbox. Rudimentary knowledge of Docker and Vapoursynth is recommended, but the readme also explains it. Can upscale and do the temporal fix at the same time.
+  
 ## Tips & Troubleshooting
 > [!CAUTION]
 > * If fps are much lower than the benchmarks, try adding `core.max_cache_size = 20000` (20GB) near the top of your vapoursynth script to allow higher RAM usage. For high tr or resolution, increase further if needed.
 
 > [!TIP]
 > * There is a big drop in performance for tr > 6, due to switching from mvtools to mvtools-sf, which is slower.
-> * mvtools-sf release r9 and the r10 pre-release will both work, but r9 is faster for me.
-> * Make sure to check very dark, hazy, or faint scenes for blending/ghosting and reduce strength if necessary.  
+> * mvtools-sf release r9 and the r10 pre-release are both supported, but r9 is faster for me.
 
 ## Benchmarks
 
