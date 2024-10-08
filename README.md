@@ -61,10 +61,11 @@ Should have no black borders. Full range (PC) input is recommended.
 __*`strength`*__  
 Suppression strength of temporal inconsistencies. Higher means more aggressive. 400 works great in most cases.  
 The best way to finetune is to find a static scene and increase this till lines and details are stable.  
-Reduce if you get blending/ghosting on dark or hazy scenes.  
+Reduce if you get blending/ghosting on small movements, especially in dark or hazy scenes, or blocky artifacts.  
 
 __*`tr`*__  
-Temporal radius sets the number of frames to average over. Higher means more stable, especially on slow pans and zooms, but slower. 6 works great in most cases.  
+Temporal radius sets the number of frames to average over.  
+Higher means more stable, especially on slow pans and zooms, but slower. 6 works great in most cases.  
 The best way to finetune is to find a slow pan or zoom and increase this till lines and details are stable.
 
 __*`exclude`* (optional)__  
