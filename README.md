@@ -20,7 +20,7 @@
 Also known as temporal consistency, line wiggle fix, stabilization, temporal denoising, or temporal fix.  
 This runs on the CPU in parallel to the upscaling on the GPU. Intended for animation.
 
-__Comparisons (by hddvddegogo):__  
+Comparisons by hddvddegogo:  
 https://www.youtube.com/watch?v=BXc_Uddt2KA  
 https://www.youtube.com/watch?v=u6LHR9_m5rg  
 
@@ -63,13 +63,13 @@ Should have no black borders.
 
 __*`strength`*__  
 Suppression strength of temporal inconsistencies. Higher means more aggressive. 400 works great in most cases.  
-The best way to finetune is to find a static scene and increase this till lines and details are stable.  
-Reduce if you get blending/ghosting on small movements, especially in dark or hazy scenes, or blocky artifacts.
+The best way to finetune is to find a static scene and adjust till lines and details are stable.  
+Reduce if you get blending/ghosting on small movements, like a mouth. Especially in dark or hazy scenes.
 
 __*`tr`*__  
 Temporal radius sets the number of frames to average over.  
-Higher means more stable, especially on slow pans and zooms, but makes it slower. 6 works great in most cases.  
-The best way to finetune is to find a slow pan or zoom and increase this till lines and details are stable.
+Higher means more stable, especially on slow pans and zooms, but is slower. 6 works great in most cases.  
+The best way to finetune is to find a slow pan or zoom and adjust till lines and details are stable.
 
 __*`exclude`* (optional)__  
 Optionally exclude scenes with intended temporal inconsistencies, or in case this doesn't work.  
@@ -83,9 +83,6 @@ Only use this if there is actually noise/grain, or low frequency flicker! This r
 __*`debug`* (optional)__  
 Shows areas that will be left untouched in pink. This includes areas with high motion, scene changes and previously excluded scenes. May help while tuning parameters to see if the area is even affected.
 
-<br />
-
-## Tips & Troubleshooting
 > [!CAUTION]
 > * If fps are much lower than the benchmarks, try adding `core.max_cache_size = 15000` (15GB) near the top of your vapoursynth script to allow higher RAM usage. Very high tr or resolution may need more.
 
@@ -93,14 +90,14 @@ Shows areas that will be left untouched in pink. This includes areas with high m
 > * There is a big drop in performance for tr > 6, due to switching from mvtools to mvtools-sf, which is slower.
 > * mvtools-sf release r9 and the r10 pre-release are both supported, but r9 is faster for me.
 
+<br />
+
 ## Benchmarks
 
 | Hardware    | Resolution | TR | Average FPS
 | ----------- | ---------- | -- | -----------
 | Ryzen 5900X | 1440x1080  | 6  | ~8 fps
 | Ryzen 5900X | 2880x2160  | 6  | ~5 fps
-
-<br />
 
 ## Alternative Usage Options
 Several projects integrated this script to simplify usage without the need for Vapoursynth knowledge.
@@ -110,4 +107,3 @@ Several projects integrated this script to simplify usage without the need for V
   Video filter toolbox with a GUI. Can be a bit overwhelming due to the amount of features, but can upscale and do the temporal fix at the same time, as well as many more filters.
 * __[VSGAN-tensorrt-docker](https://github.com/styler00dollar/VSGAN-tensorrt-docker)__ (Windows and Linux)  
   Command line AI upscale and interpolation toolbox. Rudimentary knowledge of Docker and Vapoursynth is recommended, but the readme also explains it. Can upscale and do the temporal fix at the same time.
-  
