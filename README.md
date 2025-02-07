@@ -31,16 +31,16 @@ https://www.youtube.com/watch?v=u6LHR9_m5rg
 <br />
 
 ## Requirements
-* [fftw3.3](http://www.fftw.org/download.html) (required by mvtools)  
+* [fftw3.3](http://www.fftw.org/download.html) *(required by mvtools)*  
     __Windows__: download and put `.dll` files in plugin folder or add to windows PATH  
     __Linux__: `apt install libfftw3-3 libfftw3-dev` or compile from source
-* [mvtools](https://github.com/dubhater/vapoursynth-mvtools) (release v24 or newer)
-* [mvtools-sf](https://github.com/IFeelBloated/vapoursynth-mvtools-sf) (optional, only for tr > 6)
+* [mvtools](https://github.com/dubhater/vapoursynth-mvtools) *(release v24 or newer)*
+* [mvtools-sf](https://github.com/IFeelBloated/vapoursynth-mvtools-sf) *(optional, only for tr > 6)*
 * [temporalmedian](https://github.com/dubhater/vapoursynth-temporalmedian)
 * [motionmask](https://github.com/dubhater/vapoursynth-motionmask)
 * [fillborders](https://github.com/dubhater/vapoursynth-fillborders)
 * [retinex](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-Retinex)
-* [tcanny](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-TCanny) (release r14 or newer)
+* [tcanny](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-TCanny) *(release r14 or newer)*
 * [ctmf](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-CTMF)
 * [rgvs](https://github.com/vapoursynth/vs-removegrain)
 
