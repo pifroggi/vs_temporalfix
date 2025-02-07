@@ -18,8 +18,7 @@
 
 # Add Temporal Coherence to Single Image AI Upscaling Models in Vapoursynth
 Also known as temporal consistency, line wiggle fix, stabilization, temporal denoising, or temporal fix.  
-This will not add extra work to the upscaling on the GPU and instead run in parallel on the CPU.  
-Intended for animation.
+This runs on the CPU in parallel to the upscaling on the GPU. Intended for animation.
 
 __Comparisons (by hddvddegogo):__  
 https://www.youtube.com/watch?v=BXc_Uddt2KA  
@@ -53,12 +52,14 @@ Or install via pip: `pip install git+https://github.com/pifroggi/vs_temporalfix.
 
 ## Usage
 
-    from vs_temporalfix import vs_temporalfix
-    clip = vs_temporalfix(clip, strength=400, tr=6, exclude="[10 20]", debug=False)
+```python
+from vs_temporalfix import vs_temporalfix
+clip = vs_temporalfix(clip, strength=400, tr=6, exclude=None, denoise=False, debug=False)
+```
 
 __*`clip`*__  
-Temporally unstable clip. Must be in YUV or GRAY format.  
-Should have no black borders. Full range (PC) input is recommended.
+Temporally unstable clip.
+Should have no black borders.
 
 __*`strength`*__  
 Suppression strength of temporal inconsistencies. Higher means more aggressive. 400 works great in most cases.  
@@ -71,18 +72,22 @@ Higher means more stable, especially on slow pans and zooms, but makes it slower
 The best way to finetune is to find a slow pan or zoom and increase this till lines and details are stable.
 
 __*`exclude`* (optional)__  
-Optionally exclude scenes with intended temporal inconsistencies (like TV noise), or in case this doesn't work.  
+Optionally exclude scenes with intended temporal inconsistencies, or in case this doesn't work.  
 Example setting 3 scenes: `exclude="[10 20] [600 900] [2000 2500]"`  
 First number in the brackets is the first frame of the scene, the second number is the last frame (inclusive).
 
+__*`denoise`* (optional)__  
+By default only temporal inconsistencies produced by super resolution models are fixed. Setting denoise to True will process very high and very low frequencies in addition with only marginal extra slowdown.
+Only use this if there is actually noise/grain, or low frequency flicker! This risks to remove some details like every denoiser, but is useful if you're planning to denoise anyway.
+
 __*`debug`* (optional)__  
-Shows protected areas that will be left untouched in pink. This includes areas with high motion, scene changes and excluded scenes. May help while tuning parameters to see if the area is even affected.
+Shows areas that will be left untouched in pink. This includes areas with high motion, scene changes and previously excluded scenes. May help while tuning parameters to see if the area is even affected.
 
 <br />
 
 ## Tips & Troubleshooting
 > [!CAUTION]
-> * If fps are much lower than the benchmarks, try adding `core.max_cache_size = 20000` (20GB) near the top of your vapoursynth script to allow higher RAM usage. For higher tr or resolution, increase further if needed.
+> * If fps are much lower than the benchmarks, try adding `core.max_cache_size = 15000` (15GB) near the top of your vapoursynth script to allow higher RAM usage. Very high tr or resolution may need more.
 
 > [!TIP]
 > * There is a big drop in performance for tr > 6, due to switching from mvtools to mvtools-sf, which is slower.
@@ -92,13 +97,13 @@ Shows protected areas that will be left untouched in pink. This includes areas w
 
 | Hardware    | Resolution | TR | Average FPS
 | ----------- | ---------- | -- | -----------
-| Ryzen 5900X | 1440x1080  | 6  | ~7 fps
-| Ryzen 5900X | 2880x2160  | 6  | ~4 fps
+| Ryzen 5900X | 1440x1080  | 6  | ~8 fps
+| Ryzen 5900X | 2880x2160  | 6  | ~5 fps
 
 <br />
 
 ## Alternative Usage Options
-Several projects integrated this script to simplify usage without Vapoursynth knowledge.
+Several projects integrated this script to simplify usage without the need for Vapoursynth knowledge.
 * __[py_temporalfix](https://github.com/JepEtau/py_temporalfix)__ (Windows only)  
   Simple portable command line tool to just do the temporal fix.
 * __[Hybrid](https://www.selur.de/)__ (Windows only)  
