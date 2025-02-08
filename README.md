@@ -20,12 +20,12 @@
 Also known as temporal consistency, line wiggle fix, stabilization, temporal denoising, or temporal fix.  
 This runs on the CPU in parallel to the upscaling on the GPU. Intended for animation.
 
-Comparisons by hddvddegogo:  
-https://www.youtube.com/watch?v=BXc_Uddt2KA  
-https://www.youtube.com/watch?v=u6LHR9_m5rg  
+Check out hddvddegogo's comparisons [here](https://www.youtube.com/watch?v=BXc_Uddt2KA) and [here](https://www.youtube.com/watch?v=u6LHR9_m5rg).
+
+
 
 <p align="center">
-    <img src="README_example.gif"/>
+    <img src="README_img1.gif"/>
 </p>
 
 <br />
@@ -54,7 +54,7 @@ Or install via pip: `pip install git+https://github.com/pifroggi/vs_temporalfix.
 
 ```python
 from vs_temporalfix import vs_temporalfix
-clip = vs_temporalfix(clip, strength=400, tr=6, exclude=None, denoise=False, debug=False)
+clip = vs_temporalfix(clip, strength=400, tr=6, denoise=False, exclude=None, debug=False)
 ```
 
 __*`clip`*__  
@@ -64,21 +64,20 @@ Should have no black borders.
 __*`strength`*__  
 Suppression strength of temporal inconsistencies. Higher means more aggressive. 400 works great in most cases.  
 The best way to finetune is to find a static scene and adjust till lines and details are stable.  
-Reduce if you get blending/ghosting on small movements, like a mouth. Especially in dark or hazy scenes.
+Reduce if you get blending/ghosting on small movements, especially in dark or hazy scenes.
 
 __*`tr`*__  
 Temporal radius sets the number of frames to average over.  
 Higher means more stable, especially on slow pans and zooms, but is slower. 6 works great in most cases.  
 The best way to finetune is to find a slow pan or zoom and adjust till lines and details are stable.
 
+__*`denoise`* (optional)__  
+By default only temporal inconsistencies in the frequency range produced by super resolution models are fixed. Setting denoise to True will fix very high and low frequency noise in addition with only a slight slowdown. Only use this if there is actually noise/grain, or low frequency flicker! This risks to remove some details like every denoiser, but is useful if you're planning to denoise anyway.
+
 __*`exclude`* (optional)__  
 Optionally exclude scenes with intended temporal inconsistencies, or in case this doesn't work.  
 Example setting 3 scenes: `exclude="[10 20] [600 900] [2000 2500]"`  
 First number in the brackets is the first frame of the scene, the second number is the last frame (inclusive).
-
-__*`denoise`* (optional)__  
-By default only temporal inconsistencies produced by super resolution models are fixed. Setting denoise to True will process very high and very low frequencies in addition with only marginal extra slowdown.
-Only use this if there is actually noise/grain, or low frequency flicker! This risks to remove some details like every denoiser, but is useful if you're planning to denoise anyway.
 
 __*`debug`* (optional)__  
 Shows areas that will be left untouched in pink. This includes areas with high motion, scene changes and previously excluded scenes. May help while tuning parameters to see if the area is even affected.
