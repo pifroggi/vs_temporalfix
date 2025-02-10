@@ -207,7 +207,7 @@ def LowFreqDenoise(clip, motionmask, thsad=200, tr=6):
     return FrequencyMerge(clip_degr, clip, 10, 3)                                    # merge low freqs with original high freqs
     
 
-def vs_temporalfix(clip, strength=400, tr=6, exclude=None, denoise=False, debug=False):
+def vs_temporalfix(clip, strength=400, tr=6, denoise=False, exclude=None, debug=False):
     # based on SMDegrain function from G41Fun https://github.com/Vapoursynth-Plugins-Gitify/G41Fun
     # which is a modification of SMDegrain from havsfunc https://github.com/HomeOfVapourSynthEvolution/havsfunc/blob/r31/havsfunc.py#L3186
     # which is a port of SMDegrain from avisynth https://forum.videohelp.com/threads/369142
