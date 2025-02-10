@@ -450,7 +450,7 @@ def vs_temporalfix(clip, strength=400, tr=6, exclude=None, denoise=False, debug=
         clip = ExcludeRegions(clip, orig, exclude=exclude)
     
     # return result
-    return clip, pref, mm
+    return clip
 
 
 # I have consolidated a few functions here to make sure it doesn't break
