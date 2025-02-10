@@ -84,7 +84,7 @@ __*`debug`* (optional)__
 Shows areas that will be left untouched in pink. This includes areas with high motion, scene changes and previously excluded scenes. May help while tuning parameters to see if the area is even affected.
 
 > [!CAUTION]
-> * If fps are much lower than the benchmarks, try adding `core.max_cache_size = 15000` (15GB) near the top of your vapoursynth script to allow higher RAM usage. Very high tr or resolution may need more.
+> * If fps are much lower than the benchmarks, try adding `core.max_cache_size = 15000` (15GB) to your vapoursynth script to allow higher RAM usage. High tr and resolution or large filter scripts may need more.
 
 > [!TIP]
 > * There is a big drop in performance for tr > 6, due to switching from mvtools to mvtools-sf, which is slower.
