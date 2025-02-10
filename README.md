@@ -72,7 +72,8 @@ Higher means more stable, especially on slow pans and zooms, but is slower. 6 wo
 The best way to finetune is to find a slow pan or zoom and adjust till lines and details are stable.
 
 __*`denoise`* (optional)__  
-By default only temporal inconsistencies in the frequency range produced by super resolution models are fixed. Setting denoise to True will fix very high and low frequency noise in addition with only a slight slowdown. Only use this if there is actually noise/grain, or low frequency flicker! This risks to remove some details like every denoiser, but is useful if you're planning to denoise anyway.
+Removes grain and low frequency noise in addition to the inconsistencies caused by super resolution models.  
+Only use this if there is actually noise/grain, or low frequency flicker! It risks to remove some details like every denoiser, but is useful if you're planning to denoise anyway.
 
 __*`exclude`* (optional)__  
 Optionally exclude scenes with intended temporal inconsistencies, or in case this doesn't work.  
