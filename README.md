@@ -17,7 +17,7 @@
 
 
 # Add Temporal Coherence to Single Image AI Upscaling Models in Vapoursynth
-Also known as temporal consistency, line wiggle fix, stabilization, temporal denoising, or temporal fix.  
+Also known as temporal consistency, line wiggle fix, stabilization, deshimmering, temporal denoising, or temporal fix.  
 This runs on the CPU in parallel to the upscaling on the GPU. Intended for animation.
 
 Check out hddvddegogo's comparisons [here](https://www.youtube.com/watch?v=BXc_Uddt2KA) and [here](https://www.youtube.com/watch?v=u6LHR9_m5rg).
