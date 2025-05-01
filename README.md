@@ -58,8 +58,7 @@ clip = vs_temporalfix(clip, strength=400, tr=6, denoise=False, exclude=None, deb
 ```
 
 __*`clip`*__  
-Temporally unstable clip.
-Should have no black borders.
+Temporally unstable upscaled clip. Should have no black borders.
 
 __*`strength`*__  
 Suppression strength of temporal inconsistencies. Higher means more aggressive. 400 works great in most cases.  
@@ -76,7 +75,7 @@ Removes grain and low frequency noise in addition to the inconsistencies caused 
 Only use this if there is actually noise/grain, or low frequency flicker! It risks to remove some details like every denoiser, but is useful if you're planning to denoise anyway.
 
 __*`exclude`* (optional)__  
-Optionally exclude scenes with intended temporal inconsistencies, or in case this doesn't work.  
+Optionally exclude scenes with intended temporal inconsistencies, or in case this causes unexpected issues.  
 Example setting 3 scenes: `exclude="[10 20] [600 900] [2000 2500]"`  
 First number in the brackets is the first frame of the scene, the second number is the last frame (inclusive).
 
@@ -87,6 +86,7 @@ Shows areas that will be left untouched in pink. This includes areas with high m
 > * If fps are much lower than the benchmarks, try adding `core.max_cache_size = 15000` (15GB) to your vapoursynth script to allow higher RAM usage. High tr and resolution or large filter scripts may need more.
 
 > [!TIP]
+> * Crop any black borders on the input clip, as those may cause ghosting on bright frames.
 > * There is a big drop in performance for tr > 6, due to switching from mvtools to mvtools-sf, which is slower.
 > * mvtools-sf release r9 and the r10 pre-release are both supported, but r9 is faster for me.
 
