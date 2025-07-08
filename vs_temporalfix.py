@@ -8,10 +8,14 @@ import vapoursynth as vs
 core = vs.core
 
 
+BOXBLUR = core.vszip.BoxBlur if hasattr(core,"vszip")  else core.std.BoxBlur
+EXPR    = core.akarin.Expr   if hasattr(core,"akarin") else core.std.Expr
+
+
 def AverageColorFix(clip, ref, radius=4, passes=4):
     # modified from https://github.com/pifroggi/vs_colorfix
-    blurred_reference = core.std.BoxBlur(ref, hradius=radius, hpasses=passes, vradius=radius, vpasses=passes)
-    blurred_clip = core.std.BoxBlur(clip, hradius=radius, hpasses=passes, vradius=radius, vpasses=passes)
+    blurred_reference = BOXBLUR(ref, hradius=radius, hpasses=passes, vradius=radius, vpasses=passes)
+    blurred_clip = BOXBLUR(clip, hradius=radius, hpasses=passes, vradius=radius, vpasses=passes)
     diff_clip = core.std.MakeDiff(blurred_reference, blurred_clip)
     return core.std.MergeDiff(clip, diff_clip)
 
@@ -27,8 +31,8 @@ def AverageColorFixFast(clip, ref, downscale_factor=8):
 
 def FrequencyMerge(low, high, radius=40, passes=3):
     # merges low freqs of one clip with high freqs of another clip
-    low_remaining  = core.std.BoxBlur(low,  hradius=radius, hpasses=passes, vradius=radius, vpasses=passes)
-    high_removed   = core.std.BoxBlur(high, hradius=radius, hpasses=passes, vradius=radius, vpasses=passes)
+    low_remaining  = BOXBLUR(low,  hradius=radius, hpasses=passes, vradius=radius, vpasses=passes)
+    high_removed   = BOXBLUR(high, hradius=radius, hpasses=passes, vradius=radius, vpasses=passes)
     high_remaining = core.std.MakeDiff(high, high_removed)
     return core.std.MergeDiff(low_remaining, high_remaining)
 
@@ -48,7 +52,7 @@ def TweakDarks(src, s0=2.0, c=0.0625, chroma=True):
     c1 = 1 + c
     c2 = c1 * c
     e = "{} {} {} {} {} + / - * {} 1 {} - * + {} *".format(k, c1, c2, t, c, t, k, 256 * i)
-    return core.std.Expr([src], [e] if src.format.num_planes == 1 else [e, expr if chroma else ""])
+    return EXPR([src], [e] if src.format.num_planes == 1 else [e, expr if chroma else ""])
 
 
 def ExcludeRegions(clip, replacement, exclude=None):
@@ -57,7 +61,7 @@ def ExcludeRegions(clip, replacement, exclude=None):
     import re
 
     if not isinstance(exclude, str):
-        raise TypeError('Exclusions are set like this: exclude="[100 300] [600 900] [2000 2500]", where the first number in the brackets is the start frame and the second is the end frame (inclusive).')
+        raise TypeError('vs_temporalfix: Exclusions are set like this: exclude="[100 300] [600 900] [2000 2500]", where the first number in the brackets is the start frame and the second is the end frame (inclusive).')
 
     exclude = exclude.replace(",", " ").replace(":", " ")
     frames = re.findall(r"\d+(?!\d*\s*\d*\s*\d*\])", exclude)
@@ -70,9 +74,9 @@ def ExcludeRegions(clip, replacement, exclude=None):
 
     for start, end in maps:
         if start > end:
-            raise ValueError("Exclusions start frame is bigger than end frame: [{} {}]".format(start, end))
+            raise ValueError("vs_temporalfix: Exclusions start frame is bigger than end frame: [{} {}]".format(start, end))
         if start >= clip.num_frames:
-            raise ValueError("Exclusions start frame {} is outside the clip, which has only {} frames.".format(start, clip.num_frames))
+            raise ValueError("vs_temporalfix: Exclusions start frame {} is outside the clip, which has only {} frames.".format(start, clip.num_frames))
 
     out = clip
     for start, end in maps:
@@ -86,7 +90,7 @@ def ExcludeRegions(clip, replacement, exclude=None):
     return out
 
 
-def DegrainPrefilter(clip, thsad=250, tr=6):
+def TemporalFixPrefilter(clip, thsad=250, tr=6):
     # creates a temporally extremely stable reference for better motion vector estimation, but with lots of ghosting
     # based on SpotLess function from G41Fun https://github.com/Vapoursynth-Plugins-Gitify/G41Fun
     # which was modified from lostfunc https://github.com/theChaosCoder/lostfunc/blob/v1/lostfunc.py#L10
@@ -106,7 +110,7 @@ def DegrainPrefilter(clip, thsad=250, tr=6):
     bc1 = C(clip, sup, bv1)
     fc1 = C(clip, sup, fv1)
     fcb = core.std.Interleave([fc1, clip, bc1])
-    clip = core.tmedian.TemporalMedian(fcb, 1, 0)[1::3]
+    clip = core.zsmooth.TemporalMedian(fcb, radius=1, planes=0)[1::3]
 
     # second pass with degrain and a wide radius (improves pans, zooms and similar, reduces warping)
     bs  = 128  # large blocksize to reduce warping
@@ -148,27 +152,27 @@ def DegrainPrefilter(clip, thsad=250, tr=6):
         return clip.mv.Degrain6(sup, bv1, fv1, bv2, fv2, bv3, fv3, bv4, fv4, bv5, fv5, bv6, fv6, thsad=thsad, plane=0)
 
 
-def LowFreqDenoise(clip, motionmask, thsad=200, tr=6):
+def LowFreqDenoise(low, high, motionmask, thsad=200, tr=6):
     # temporally denoise low frequencies only
     
     A = core.mv.Analyse
     C = core.mv.Compensate
     S = core.mv.Super
     
-    bs  = 32
+    bs  = 8
     pel = 1
     analyse_args = dict(blksize=bs, overlap=bs // 2, search=4, searchparam=1, truemotion=False)
-    
+   
     # downscale clips
-    clip_down  = core.resize.Bicubic(clip,     width=clip.width // 8, height=clip.height // 8)
-    motionmask = core.resize.Point(motionmask, width=clip.width // 8, height=clip.height // 8)
-    motionmask = core.std.Maximum(motionmask)                       # expand mask
-    prefilter  = TweakDarks(clip_down, s0=2.5, c=0.2, chroma=False) # brighten darks
+    low_down   = core.resize.Bicubic(low,      width=low.width // 8, height=low.height // 8)
+    motionmask = core.resize.Point(motionmask, width=low.width // 8, height=low.height // 8)
+    motionmask = core.std.Maximum(motionmask)                      # expand mask
+    prefilter  = TweakDarks(low_down, s0=2.5, c=0.2, chroma=False) # brighten darks
     
     # create super clips
     pref_sup = S(prefilter, pel=pel, sharp=1, rfilter=4)
-    clip_sup = S(clip_down, pel=pel, sharp=0, rfilter=1, levels=1)
-    
+    low_sup  = S(low_down,  pel=pel, sharp=0, rfilter=1, levels=1)
+
     # analyze
     if tr > 5:
         bv6 = A(pref_sup, isb=True,  delta=6, **analyse_args)
@@ -190,21 +194,21 @@ def LowFreqDenoise(clip, motionmask, thsad=200, tr=6):
     
     # degrain
     if   tr == 1:
-        clip_degr = core.mv.Degrain1(clip_down, clip_sup, bv1, fv1, thsad=thsad, plane=0)
+        low_degr = core.mv.Degrain1(low_down, low_sup, bv1, fv1, thsad=thsad, plane=0)
     elif tr == 2:
-        clip_degr = core.mv.Degrain2(clip_down, clip_sup, bv1, fv1, bv2, fv2, thsad=thsad, plane=0)
+        low_degr = core.mv.Degrain2(low_down, low_sup, bv1, fv1, bv2, fv2, thsad=thsad, plane=0)
     elif tr == 3:
-        clip_degr = core.mv.Degrain3(clip_down, clip_sup, bv1, fv1, bv2, fv2, bv3, fv3, thsad=thsad, plane=0)
+        low_degr = core.mv.Degrain3(low_down, low_sup, bv1, fv1, bv2, fv2, bv3, fv3, thsad=thsad, plane=0)
     elif tr == 4:
-        clip_degr = core.mv.Degrain4(clip_down, clip_sup, bv1, fv1, bv2, fv2, bv3, fv3, bv4, fv4, thsad=thsad, plane=0)
+        low_degr = core.mv.Degrain4(low_down, low_sup, bv1, fv1, bv2, fv2, bv3, fv3, bv4, fv4, thsad=thsad, plane=0)
     elif tr == 5:
-        clip_degr = core.mv.Degrain5(clip_down, clip_sup, bv1, fv1, bv2, fv2, bv3, fv3, bv4, fv4, bv5, fv5, thsad=thsad, plane=0)
+        low_degr = core.mv.Degrain5(low_down, low_sup, bv1, fv1, bv2, fv2, bv3, fv3, bv4, fv4, bv5, fv5, thsad=thsad, plane=0)
     else:
-        clip_degr = core.mv.Degrain6(clip_down, clip_sup, bv1, fv1, bv2, fv2, bv3, fv3, bv4, fv4, bv5, fv5, bv6, fv6, thsad=thsad, plane=0)
+        low_degr = core.mv.Degrain6(low_down, low_sup, bv1, fv1, bv2, fv2, bv3, fv3, bv4, fv4, bv5, fv5, bv6, fv6, thsad=thsad, plane=0)
     
-    clip_degr = core.std.MaskedMerge(clip_degr, clip_down, motionmask)               # reduce blending/ghosting
-    clip_degr = core.resize.Bicubic(clip_degr, width=clip.width, height=clip.height) # resize back to original res
-    return FrequencyMerge(clip_degr, clip, 10, 3)                                    # merge low freqs with original high freqs
+    low_degr = core.std.MaskedMerge(low_degr, low_down, motionmask)              # reduce blending/ghosting
+    low_degr = core.resize.Bicubic(low_degr, width=low.width, height=low.height) # resize back to original res
+    return FrequencyMerge(low_degr, high, 10, 3)                                 # merge low freqs with original high freqs
     
 
 def vs_temporalfix(clip, strength=400, tr=6, denoise=False, exclude=None, debug=False):
@@ -215,9 +219,9 @@ def vs_temporalfix(clip, strength=400, tr=6, denoise=False, exclude=None, debug=
     ##### checks & settings #####
 
     if not isinstance(clip, vs.VideoNode):
-        raise TypeError("This is not a vapoursynth clip.")
+        raise TypeError("vs_temporalfix: This is not a vapoursynth clip.")
     if tr < 1:
-        raise ValueError("Temporal radius (tr) must be at least 1.")
+        raise ValueError("vs_temporalfix: Temporal radius (tr) must be at least 1.")
 
     # original properties
     props       = clip.get_frame(0).props
@@ -299,10 +303,10 @@ def vs_temporalfix(clip, strength=400, tr=6, denoise=False, exclude=None, debug=
     m3 = mm[3:] + mm[-3:] # shift - 3    frame as well, so that it is on both sides of the change. The following two 
     p1 = mm[:1] + mm[:-1] # shift + 1    shifts backwards and forwards are used to fade in/out the mask to hide ghosting.
     p2 = mm[:2] + mm[:-2] # shift + 2
-    mm = core.std.Expr([mm, m1, m2, m3, p1, p2], expr=["x y + z 0.75 * + a 0.5 * + b 0.75 * + c 0.5 * +"])
-    mm = core.std.Median(mm) # median mask
+    mm = EXPR([mm, m1, m2, m3, p1, p2], expr=["x y + z 0.75 * + a 0.5 * + b 0.75 * + c 0.5 * +"])
+    mm = core.zsmooth.Median(mm, radius=1) # median mask
     mm = core.resize.Point(mm, width=ref.width, height=ref.height)
-    mm = core.std.BoxBlur(mm, hradius=4, vradius=4, hpasses=2, vpasses=2) # feather mask
+    mm = BOXBLUR(mm, hradius=4, vradius=4, hpasses=2, vpasses=2) # feather mask
 
     ##### prefilter to help with motion vectors #####
     
@@ -316,7 +320,7 @@ def vs_temporalfix(clip, strength=400, tr=6, denoise=False, exclude=None, debug=
     
     # prefilter
     pref_ref = pref
-    pref = DegrainPrefilter(pref, strength // 2, tr)       # main prefilter step
+    pref = TemporalFixPrefilter(pref, strength // 2, tr)   # main prefilter step
     pref = AverageColorFixFast(pref, pref_ref, 32)         # fix low freqs
     pref = core.std.MaskedMerge(pref, pref_ref, mm_resize) # fix blending/ghosting
     pref = TweakDarks(pref, s0=Str, c=Amp, chroma=chroma)  # brighten darks
@@ -401,25 +405,22 @@ def vs_temporalfix(clip, strength=400, tr=6, denoise=False, exclude=None, debug=
     clip = ContraSharpening(clip, ref, rep=24, planes=[0])
 
     # mask to find areas where temporalfix may have removed some texture
-    fm_post = core.std.ShufflePlanes(clip, planes=0, colorfamily=vs.GRAY)
-    fm_post = core.tcanny.TCanny(fm_post, op=3, mode=1, sigma=0.1, scale=5.0, t_h=8.0, t_l=1.0, opt=1) # mask textures post temporalfix
-    fm_post = core.std.Median(fm_post, planes=0)
-    fm_post = core.std.Invert(fm_post) # invert for flat areas instead
+    flatmask_post = core.std.ShufflePlanes(clip, planes=0, colorfamily=vs.GRAY)
+    flatmask_post = core.tcanny.TCanny(flatmask_post, op=3, mode=1, sigma=0.1, scale=5.0, t_h=8.0, t_l=1.0, opt=1) # mask textures post temporalfix
+    flatmask_post = core.zsmooth.Median(flatmask_post, radius=1, planes=0)
+    flatmask_post = core.std.Invert(flatmask_post) # invert for flat areas instead
 
     # overlay original on top of flat areas as these areas may have had texture before
     # don't do if denoise as this will bring back light grain in those areas
     if not denoise:
-        clip = core.std.MaskedMerge(clip, ref, fm_post, planes=0)
+        clip = core.std.MaskedMerge(clip, ref, flatmask_post, planes=0)
 
     # mask flat areas with block matching artifacts/wrong motion and overlay original
-    fm_pre  = core.std.ShufflePlanes(ref, planes=0, colorfamily=vs.GRAY)
-    fm_pre  = core.tcanny.TCanny(fm_pre, op=3, mode=1, sigma=0.1, scale=5.0, t_h=8.0, t_l=1.0, opt=1) # mask textures pre temporalfix
-    fm_pre  = core.std.Median(fm_pre, planes=0)
-    fm_pre  = core.std.Invert(fm_pre) # invert for flat areas instead
-    fm_diff = core.std.MakeDiff(fm_post, fm_pre) # compare masks to check if there is now more texture than before, which suggests artifacts
-    fm_diff = core.std.Levels(fm_diff, max_in=32768, max_out=65535) # only use part of mask were textures increased
-    fm_diff = core.std.Invert(fm_diff)
-    clip    = core.std.MaskedMerge(clip, ref, fm_diff, planes=0) # use mask to overlay original
+    flatmask_pre  = core.std.ShufflePlanes(ref, planes=0, colorfamily=vs.GRAY)
+    flatmask_pre  = core.tcanny.TCanny(flatmask_pre, op=3, mode=1, sigma=0.1, scale=5.0, t_h=8.0, t_l=1.0, opt=1) # mask textures pre temporalfix
+    flatmask_pre  = core.zsmooth.Median(flatmask_pre, radius=1, planes=0)
+    flatmask_diff = EXPR([flatmask_post, flatmask_pre], "65535 x y + 32767 - 2 * -") # compare masks to check if there is now more texture than before, which suggests artifacts, then only use part of mask were textures increased
+    clip          = core.std.MaskedMerge(clip, ref, flatmask_diff, planes=0) # use mask to overlay original
 
     # overlay original in areas with large motion to fix blending/ghosting/warping
     mm = core.resize.Point(mm, format=vs.GRAY16)
@@ -429,7 +430,7 @@ def vs_temporalfix(clip, strength=400, tr=6, denoise=False, exclude=None, debug=
 
     # denoise low frequencies
     if denoise:
-        clip = LowFreqDenoise(clip, mm, strength // 2, tr)
+        clip = LowFreqDenoise(ref, clip, mm, strength // 2, tr)
 
     ##### finalize output clip #####
 
@@ -534,7 +535,7 @@ def DegrainN(clip, super, mvmulti, tr=3, thsad=400.0, plane=4, limit=1.0, thscd1
     elif tr == 24:
        dgn       = core.mvsf.Degrain24(clip, super, bvn(1), fvn(1), bvn(2), fvn(2), bvn(3), fvn(3), bvn(4), fvn(4), bvn(5), fvn(5), bvn(6), fvn(6), bvn(7), fvn(7), bvn(8), fvn(8), bvn(9), fvn(9), bvn(10), fvn(10), bvn(11), fvn(11), bvn(12), fvn(12), bvn(13), fvn(13), bvn(14), fvn(14), bvn(15), fvn(15), bvn(16), fvn(16), bvn(17), fvn(17), bvn(18), fvn(18), bvn(19), fvn(19), bvn(20), fvn(20), bvn(21), fvn(21), bvn(22), fvn(22), bvn(23), fvn(23), bvn(24), fvn(24), thsad=thsad, plane=plane, limit=limit, thscd1=thscd1, thscd2=thscd2)
     else:
-       raise ValueError("Tr must be between 1 and 24. Upgrade mvtools-sf to r10 pre-release or newer for larger radii.")
+       raise ValueError("vs_temporalfix: Tr must be between 1 and 24. Upgrade mvtools-sf to r10 pre-release or newer for larger radii.")
     return dgn
 # fmt: on
 
@@ -555,7 +556,7 @@ def ContraSharpening(clip, src, radius=None, rep=24, planes=[0, 1, 2]):
     bd = clip.format.bits_per_sample
     mid = 1 << (bd - 1)
     num = clip.format.num_planes
-    R = core.rgvs.Repair
+    R = core.zsmooth.Repair
 
     s = MinBlur(clip, planes)  # damp down remaining spots of the denoised clip
     RG11 = core.std.Convolution(s, matrix=mat1, planes=planes).std.Convolution(matrix=mat2, planes=planes)
@@ -563,7 +564,7 @@ def ContraSharpening(clip, src, radius=None, rep=24, planes=[0, 1, 2]):
     allD = core.std.MakeDiff(src, clip, planes)  # the difference achieved by the denoising
     ssDD = R(ssD, allD, [rep if i in planes else 0 for i in range(num)])  # limit the difference to the max of what the denoising removed locally
     expr = "x {} - abs y {} - abs < x y ?".format(mid, mid)  # abs(diff) after limiting may not be bigger than before
-    ssDD = core.std.Expr([ssDD, ssD], [expr if i in planes else "" for i in range(num)])
+    ssDD = EXPR([ssDD, ssD], [expr if i in planes else "" for i in range(num)])
     return core.std.MergeDiff(clip, ssDD, planes)  # apply the limited difference (sharpening is just inverse blurring)
 
 
@@ -579,6 +580,6 @@ def MinBlur(clip, planes=[0, 1, 2]):
     mat1 = [1, 2, 1, 2, 4, 2, 1, 2, 1]
     mat2 = [1, 1, 1, 1, 1, 1, 1, 1, 1]
     RG11 = core.std.Convolution(clip, matrix=mat1, planes=planes).std.Convolution(matrix=mat2, planes=planes)
-    RG4 = core.ctmf.CTMF(clip, radius=2, planes=planes)
+    RG4 = core.zsmooth.Median(clip, radius=2, planes=planes)
     expr = "x y - x z - * 0 < x dup y - abs x z - abs < y z ? ?"
-    return core.std.Expr([clip, RG11, RG4], [expr if i in planes else "" for i in range(clip.format.num_planes)])
+    return EXPR([clip, RG11, RG4], [expr if i in planes else "" for i in range(clip.format.num_planes)])
