@@ -45,7 +45,7 @@ Check out hddvddegogo's comparisons [here](https://www.youtube.com/watch?v=BXc_U
 
 ## Setup
 Put the `vs_temporalfix.py` file into your vapoursynth scripts folder.  
-Or install via pip: `pip install git+https://github.com/pifroggi/vs_temporalfix.git`
+Or install via pip: `pip install -U git+https://github.com/pifroggi/vs_temporalfix.git`
 
 <br />
 
