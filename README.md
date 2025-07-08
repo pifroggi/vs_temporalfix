@@ -36,13 +36,12 @@ Check out hddvddegogo's comparisons [here](https://www.youtube.com/watch?v=BXc_U
     __Linux__: `apt install libfftw3-3 libfftw3-dev` or compile from source
 * [mvtools](https://github.com/dubhater/vapoursynth-mvtools) *(release v24 or newer)*
 * [mvtools-sf](https://github.com/IFeelBloated/vapoursynth-mvtools-sf) *(optional, only for tr > 6)*
-* [temporalmedian](https://github.com/dubhater/vapoursynth-temporalmedian)
 * [motionmask](https://github.com/dubhater/vapoursynth-motionmask)
 * [fillborders](https://github.com/dubhater/vapoursynth-fillborders)
+* [zsmooth](https://github.com/adworacz/zsmooth)
 * [retinex](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-Retinex)
 * [tcanny](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-TCanny) *(release r14 or newer)*
-* [ctmf](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-CTMF)
-* [rgvs](https://github.com/vapoursynth/vs-removegrain)
+* [vszip](https://github.com/dnjulek/vapoursynth-zip) *(optional, slight speed boost)*
 
 ## Setup
 Put the `vs_temporalfix.py` file into your vapoursynth scripts folder.  
@@ -61,7 +60,7 @@ __*`clip`*__
 Temporally unstable upscaled clip. Should have no black borders.
 
 __*`strength`*__  
-Suppression strength of temporal inconsistencies. Higher means more aggressive. 400 works great in most cases.  
+Suppression strength of temporal inconsistencies. Higher means more aggressive. 400-700 works great in most cases.  
 The best way to finetune is to find a static scene and adjust till lines and details are stable.  
 Reduce if you get blending/ghosting on small movements, especially in dark or hazy scenes.
 
@@ -71,7 +70,7 @@ Higher means more stable, especially on slow pans and zooms, but is slower. 6 wo
 The best way to finetune is to find a slow pan or zoom and adjust till lines and details are stable.
 
 __*`denoise`* (optional)__  
-Removes grain and low frequency noise in addition to the inconsistencies caused by super resolution models.  
+Removes remaining grain and low frequency noise in addition to the inconsistencies caused by super resolution models.  
 Only use this if there is actually noise/grain, or low frequency flicker! It risks to remove some details like every denoiser, but is useful if you're planning to denoise anyway.
 
 __*`exclude`* (optional)__  
