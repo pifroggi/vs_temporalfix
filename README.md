@@ -33,7 +33,7 @@ Check out hddvddegogo's comparisons [here](https://www.youtube.com/watch?v=BXc_U
 ## Requirements
 * [fftw3.3](http://www.fftw.org/download.html) *(required by mvtools)*  
     __Windows__: download and put `.dll` files in plugin folder or add to windows PATH  
-    __Linux__: `apt install libfftw3-3 libfftw3-dev` or compile from source
+    __Linux__: `apt install libfftw3-dev` or compile from source
 * [mvtools](https://github.com/dubhater/vapoursynth-mvtools) *(release v24 or newer)*
 * [mvtools-sf](https://github.com/IFeelBloated/vapoursynth-mvtools-sf) *(optional, only for tr > 6)*
 * [motionmask](https://github.com/dubhater/vapoursynth-motionmask)
@@ -86,7 +86,8 @@ Shows areas that will be left untouched in pink. This includes areas with high m
 > [!TIP]
 > * Crop any black borders on the input clip, as those may cause ghosting on bright frames.
 > * There is a big drop in performance for tr > 6, due to switching from mvtools to mvtools-sf, which is slower.
-> * mvtools-sf release r9 and the r10 pre-release are both supported, but r9 is faster for me.
+> * Plugin mvtools-sf release r9 and the r10 pre-release are both supported, but r9 is slightly faster for me.
+> * Plugin zsmooth requires a CPU with AVX2 support (roughly post 2014). If your CPU does not have it, remove zsmooth and replace it with slower fallbacks [temporalmedian](https://github.com/dubhater/vapoursynth-temporalmedian), [ctmf](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-CTMF), and [rgvs](https://github.com/vapoursynth/vs-removegrain).
 
 <br />
 
