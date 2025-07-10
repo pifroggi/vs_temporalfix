@@ -7,15 +7,27 @@ import vapoursynth as vs
 
 core = vs.core
 
+# optional plugins for slight speed boosts
+BoxBlur        = core.vszip.BoxBlur          if hasattr(core, "vszip")   else core.std.BoxBlur
+Expression     = core.akarin.Expr            if hasattr(core, "akarin")  else core.std.Expr
 
-BOXBLUR = core.vszip.BoxBlur if hasattr(core,"vszip")  else core.std.BoxBlur
-EXPR    = core.akarin.Expr   if hasattr(core,"akarin") else core.std.Expr
+# fallback plugins because zsmooth does not support non AVX2 CPUs.
+TemporalMedian = core.zsmooth.TemporalMedian if hasattr(core, "zsmooth") else core.tmedian.TemporalMedian
+Repair         = core.zsmooth.Repair         if hasattr(core, "zsmooth") else core.rgvs.Repair
 
+def Median(clip, radius=1, planes=None):
+    # fallback plugins because zsmooth does not support non AVX2 CPUs. use std.Median for r=1 and CTMF for higher.
+    if hasattr(core, "zsmooth"):
+        return core.zsmooth.Median(clip, radius=radius, planes=planes)
+    elif radius == 1:
+        return core.std.Median(clip, planes=planes)
+    else:
+        return core.ctmf.CTMF(clip, radius=radius, planes=planes)
 
 def AverageColorFix(clip, ref, radius=4, passes=4):
     # modified from https://github.com/pifroggi/vs_colorfix
-    blurred_reference = BOXBLUR(ref, hradius=radius, hpasses=passes, vradius=radius, vpasses=passes)
-    blurred_clip = BOXBLUR(clip, hradius=radius, hpasses=passes, vradius=radius, vpasses=passes)
+    blurred_reference = BoxBlur(ref, hradius=radius, hpasses=passes, vradius=radius, vpasses=passes)
+    blurred_clip = BoxBlur(clip, hradius=radius, hpasses=passes, vradius=radius, vpasses=passes)
     diff_clip = core.std.MakeDiff(blurred_reference, blurred_clip)
     return core.std.MergeDiff(clip, diff_clip)
 
@@ -31,8 +43,8 @@ def AverageColorFixFast(clip, ref, downscale_factor=8):
 
 def FrequencyMerge(low, high, radius=40, passes=3):
     # merges low freqs of one clip with high freqs of another clip
-    low_remaining  = BOXBLUR(low,  hradius=radius, hpasses=passes, vradius=radius, vpasses=passes)
-    high_removed   = BOXBLUR(high, hradius=radius, hpasses=passes, vradius=radius, vpasses=passes)
+    low_remaining  = BoxBlur(low,  hradius=radius, hpasses=passes, vradius=radius, vpasses=passes)
+    high_removed   = BoxBlur(high, hradius=radius, hpasses=passes, vradius=radius, vpasses=passes)
     high_remaining = core.std.MakeDiff(high, high_removed)
     return core.std.MergeDiff(low_remaining, high_remaining)
 
@@ -52,7 +64,7 @@ def TweakDarks(src, s0=2.0, c=0.0625, chroma=True):
     c1 = 1 + c
     c2 = c1 * c
     e = "{} {} {} {} {} + / - * {} 1 {} - * + {} *".format(k, c1, c2, t, c, t, k, 256 * i)
-    return EXPR([src], [e] if src.format.num_planes == 1 else [e, expr if chroma else ""])
+    return Expression([src], [e] if src.format.num_planes == 1 else [e, expr if chroma else ""])
 
 
 def ExcludeRegions(clip, replacement, exclude=None):
@@ -110,7 +122,7 @@ def TemporalFixPrefilter(clip, thsad=250, tr=6):
     bc1 = C(clip, sup, bv1)
     fc1 = C(clip, sup, fv1)
     fcb = core.std.Interleave([fc1, clip, bc1])
-    clip = core.zsmooth.TemporalMedian(fcb, radius=1, planes=0)[1::3]
+    clip = TemporalMedian(fcb, radius=1, planes=0)[1::3]
 
     # second pass with degrain and a wide radius (improves pans, zooms and similar, reduces warping)
     bs  = 128  # large blocksize to reduce warping
@@ -303,10 +315,10 @@ def vs_temporalfix(clip, strength=400, tr=6, denoise=False, exclude=None, debug=
     m3 = mm[3:] + mm[-3:] # shift - 3    frame as well, so that it is on both sides of the change. The following two 
     p1 = mm[:1] + mm[:-1] # shift + 1    shifts backwards and forwards are used to fade in/out the mask to hide ghosting.
     p2 = mm[:2] + mm[:-2] # shift + 2
-    mm = EXPR([mm, m1, m2, m3, p1, p2], expr=["x y + z 0.75 * + a 0.5 * + b 0.75 * + c 0.5 * +"])
-    mm = core.zsmooth.Median(mm, radius=1) # median mask
+    mm = Expression([mm, m1, m2, m3, p1, p2], expr=["x y + z 0.75 * + a 0.5 * + b 0.75 * + c 0.5 * +"])
+    mm = Median(mm, radius=1) # median mask
     mm = core.resize.Point(mm, width=ref.width, height=ref.height)
-    mm = BOXBLUR(mm, hradius=4, vradius=4, hpasses=2, vpasses=2) # feather mask
+    mm = BoxBlur(mm, hradius=4, vradius=4, hpasses=2, vpasses=2) # feather mask
 
     ##### prefilter to help with motion vectors #####
     
@@ -407,7 +419,7 @@ def vs_temporalfix(clip, strength=400, tr=6, denoise=False, exclude=None, debug=
     # mask to find areas where temporalfix may have removed some texture
     flatmask_post = core.std.ShufflePlanes(clip, planes=0, colorfamily=vs.GRAY)
     flatmask_post = core.tcanny.TCanny(flatmask_post, op=3, mode=1, sigma=0.1, scale=5.0, t_h=8.0, t_l=1.0, opt=1) # mask textures post temporalfix
-    flatmask_post = core.zsmooth.Median(flatmask_post, radius=1, planes=0)
+    flatmask_post = Median(flatmask_post, radius=1, planes=0)
     flatmask_post = core.std.Invert(flatmask_post) # invert for flat areas instead
 
     # overlay original on top of flat areas as these areas may have had texture before
@@ -418,8 +430,8 @@ def vs_temporalfix(clip, strength=400, tr=6, denoise=False, exclude=None, debug=
     # mask flat areas with block matching artifacts/wrong motion and overlay original
     flatmask_pre  = core.std.ShufflePlanes(ref, planes=0, colorfamily=vs.GRAY)
     flatmask_pre  = core.tcanny.TCanny(flatmask_pre, op=3, mode=1, sigma=0.1, scale=5.0, t_h=8.0, t_l=1.0, opt=1) # mask textures pre temporalfix
-    flatmask_pre  = core.zsmooth.Median(flatmask_pre, radius=1, planes=0)
-    flatmask_diff = EXPR([flatmask_post, flatmask_pre], "65535 x y + 32767 - 2 * -") # compare masks to check if there is now more texture than before, which suggests artifacts, then only use part of mask were textures increased
+    flatmask_pre  = Median(flatmask_pre, radius=1, planes=0)
+    flatmask_diff = Expression([flatmask_post, flatmask_pre], "65535 x y + 32767 - 2 * -") # compare masks to check if there is now more texture than before, which suggests artifacts, then only use part of mask were textures increased
     clip          = core.std.MaskedMerge(clip, ref, flatmask_diff, planes=0) # use mask to overlay original
 
     # overlay original in areas with large motion to fix blending/ghosting/warping
@@ -553,18 +565,17 @@ def ContraSharpening(clip, src, radius=None, rep=24, planes=[0, 1, 2]):
 
     mat1 = [1, 2, 1, 2, 4, 2, 1, 2, 1]
     mat2 = [1, 1, 1, 1, 1, 1, 1, 1, 1]
-    bd = clip.format.bits_per_sample
-    mid = 1 << (bd - 1)
-    num = clip.format.num_planes
-    R = core.zsmooth.Repair
+    bd   = clip.format.bits_per_sample
+    mid  = 1 << (bd - 1)
+    num  = clip.format.num_planes
 
-    s = MinBlur(clip, planes)  # damp down remaining spots of the denoised clip
+    s    = MinBlur(clip, planes)  # damp down remaining spots of the denoised clip
     RG11 = core.std.Convolution(s, matrix=mat1, planes=planes).std.Convolution(matrix=mat2, planes=planes)
-    ssD = core.std.MakeDiff(s, RG11, planes)  # the difference of a simple kernel blur
+    ssD  = core.std.MakeDiff(s, RG11, planes)  # the difference of a simple kernel blur
     allD = core.std.MakeDiff(src, clip, planes)  # the difference achieved by the denoising
-    ssDD = R(ssD, allD, [rep if i in planes else 0 for i in range(num)])  # limit the difference to the max of what the denoising removed locally
+    ssDD = Repair(ssD, allD, [rep if i in planes else 0 for i in range(num)])  # limit the difference to the max of what the denoising removed locally
     expr = "x {} - abs y {} - abs < x y ?".format(mid, mid)  # abs(diff) after limiting may not be bigger than before
-    ssDD = EXPR([ssDD, ssD], [expr if i in planes else "" for i in range(num)])
+    ssDD = Expression([ssDD, ssD], [expr if i in planes else "" for i in range(num)])
     return core.std.MergeDiff(clip, ssDD, planes)  # apply the limited difference (sharpening is just inverse blurring)
 
 
@@ -580,6 +591,6 @@ def MinBlur(clip, planes=[0, 1, 2]):
     mat1 = [1, 2, 1, 2, 4, 2, 1, 2, 1]
     mat2 = [1, 1, 1, 1, 1, 1, 1, 1, 1]
     RG11 = core.std.Convolution(clip, matrix=mat1, planes=planes).std.Convolution(matrix=mat2, planes=planes)
-    RG4 = core.zsmooth.Median(clip, radius=2, planes=planes)
+    RG4  = Median(clip, radius=2, planes=planes)
     expr = "x y - x z - * 0 < x dup y - abs x z - abs < y z ? ?"
-    return EXPR([clip, RG11, RG4], [expr if i in planes else "" for i in range(clip.format.num_planes)])
+    return Expression([clip, RG11, RG4], [expr if i in planes else "" for i in range(clip.format.num_planes)])
