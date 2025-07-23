@@ -7,16 +7,36 @@ import vapoursynth as vs
 
 core = vs.core
 
-# optional plugins for slight speed boosts
-BoxBlur        = core.vszip.BoxBlur          if hasattr(core, "vszip")   else core.std.BoxBlur
-Expression     = core.akarin.Expr            if hasattr(core, "akarin")  else core.std.Expr
+def BoxBlur(clip, planes=None, hradius=1, hpasses=1, vradius=1, vpasses=1):
+    # optional plugin for slight speed boosts.
+    if hasattr(core, "vszip"):
+        return core.vszip.BoxBlur(clip, planes=planes, hradius=hradius, hpasses=hpasses, vradius=vradius, vpasses=vpasses)
+    else:
+        return core.std.BoxBlur(clip, planes=planes, hradius=hradius, hpasses=hpasses, vradius=vradius, vpasses=vpasses)
 
-# fallback plugins because zsmooth does not support non AVX2 CPUs.
-TemporalMedian = core.zsmooth.TemporalMedian if hasattr(core, "zsmooth") else core.tmedian.TemporalMedian
-Repair         = core.zsmooth.Repair         if hasattr(core, "zsmooth") else core.rgvs.Repair
+def Expression(clips, expr, format=None):
+    # optional plugin for slight speed boosts.
+    if hasattr(core, "akarin"):
+        return core.akarin.Expr(clips, expr, format=format)
+    else:
+        return core.std.Expr(clips, expr, format=format)
+
+def TemporalMedian(clip, radius=1, planes=None):
+    # fallback plugin because zsmooth does not support non AVX2 CPUs.
+    if hasattr(core, "zsmooth"):
+        return core.zsmooth.TemporalMedian(clip, radius=radius, planes=planes)
+    else:
+        return core.tmedian.TemporalMedian(clip, radius=radius, planes=planes)
+
+def Repair(clip, repairclip, mode=[1]):
+    # fallback plugin because zsmooth does not support non AVX2 CPUs.
+    if hasattr(core, "zsmooth"):
+        return core.zsmooth.Repair(clip, repairclip, mode=mode)
+    else:
+        return core.rgvs.Repair(clip, repairclip, mode=mode)
 
 def Median(clip, radius=1, planes=None):
-    # fallback plugins because zsmooth does not support non AVX2 CPUs. use std.Median for r=1 and CTMF for higher.
+    # fallback plugin because zsmooth does not support non AVX2 CPUs. use std.Median for r=1 and CTMF for higher.
     if hasattr(core, "zsmooth"):
         return core.zsmooth.Median(clip, radius=radius, planes=planes)
     elif radius == 1:
