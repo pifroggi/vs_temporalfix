@@ -16,7 +16,7 @@
 
 
 
-# Add Temporal Coherence to Single Image AI Upscaling Models in Vapoursynth
+# Add Temporal Coherence to Single Image AI Upscaling Models in VapourSynth
 Also known as temporal consistency, line wiggle fix, stabilization, deshimmering, temporal denoising, or temporal fix.  
 This runs on the CPU in parallel to the upscaling on the GPU. Intended for animation.
 
@@ -99,10 +99,10 @@ Shows areas that will be left untouched in pink. This includes areas with high m
 | Ryzen 5900X | 2880x2160  | 6  | ~5 fps
 
 ## Alternative Usage Options
-Several projects integrated this script to simplify usage without the need for Vapoursynth knowledge.
+Several projects integrated this script to simplify usage without the need for VapourSynth knowledge.
 * __[py_temporalfix](https://github.com/JepEtau/py_temporalfix)__ (Windows only)  
   Simple portable command line tool to just do the temporal fix.
 * __[Hybrid](https://www.selur.de/)__ (Windows only)  
   Video filter toolbox with a GUI. Can be a bit overwhelming due to the amount of features, but can upscale and do the temporal fix at the same time, as well as many more filters.
 * __[VSGAN-tensorrt-docker](https://github.com/styler00dollar/VSGAN-tensorrt-docker)__ (Windows and Linux)  
-  Command line AI upscale and interpolation toolbox. Rudimentary knowledge of Docker and Vapoursynth is recommended, but the readme also explains it. Can upscale and do the temporal fix at the same time.
+  Command line AI upscale and interpolation toolbox. Rudimentary knowledge of Docker and VapourSynth is recommended, but the readme also explains it. Can upscale and do the temporal fix at the same time.
