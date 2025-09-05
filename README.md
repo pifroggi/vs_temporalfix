@@ -18,7 +18,7 @@
 
 # Add Temporal Coherence to Single Image AI Upscaling Models in VapourSynth
 Also known as temporal consistency, line wiggle fix, stabilization, deshimmering, temporal denoising, or temporal fix.  
-This runs on the CPU in parallel to the upscaling on the GPU. Intended for animation.
+This runs on the CPU in parallel to the upscaling on the GPU. Intended for 2D animation.
 
 Check out hddvddegogo's comparisons [here](https://www.youtube.com/watch?v=BXc_Uddt2KA) and [here](https://www.youtube.com/watch?v=u6LHR9_m5rg).
 
@@ -87,7 +87,7 @@ Shows areas that will be left untouched in pink. This includes areas with high m
 > * Crop any black borders on the input clip, as those may cause ghosting on bright frames.
 > * There is a big drop in performance for tr > 6, due to switching from mvtools to mvtools-sf, which is slower.
 > * Plugin mvtools-sf release r9 and the r10 pre-release are both supported, but r9 is slightly faster for me.
-> * Plugin zsmooth requires a CPU with AVX2 support (roughly post 2014). If your CPU does not have it, remove zsmooth and replace it with slower fallbacks [temporalmedian](https://github.com/dubhater/vapoursynth-temporalmedian), [ctmf](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-CTMF), and [rgvs](https://github.com/vapoursynth/vs-removegrain).
+> * Plugin [zsmooth](https://github.com/adworacz/zsmooth) requires a CPU with AVX2 support (roughly post 2014). If your CPU does not have it, remove zsmooth and replace it with slower fallbacks [temporalmedian](https://github.com/dubhater/vapoursynth-temporalmedian), [ctmf](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-CTMF), and [rgvs](https://github.com/vapoursynth/vs-removegrain).
 
 <br />
 
