@@ -81,13 +81,13 @@ __*`debug`* (optional)__
 Shows areas that will be left untouched in pink. This includes areas with high motion, scene changes and previously excluded scenes. May help while tuning parameters to see if the area is even affected.
 
 > [!CAUTION]
-> * If fps are much lower than the benchmarks, try adding `core.max_cache_size = 15000` (15GB) to your vapoursynth script to allow higher RAM usage. High tr and resolution or large filter scripts may need more.
+> * If vs_temporalfix is very slow for you, try adding `core.max_cache_size = 15000` (15GB) to increase vapoursynth's frame cache. High tr and resolution or large filter scripts may need even more.
 
 > [!TIP]
 > * Crop any black borders on the input clip, as those may cause ghosting on bright frames.
 > * There is a big drop in performance for tr > 6, due to switching from mvtools to mvtools-sf, which is slower.
-> * Plugin mvtools-sf release r9 and the r10 pre-release are both supported, but r9 is slightly faster for me.
-> * Plugin [zsmooth](https://github.com/adworacz/zsmooth) requires a CPU with AVX2 support (roughly post 2014). If your CPU does not have it, remove zsmooth and replace it with slower fallbacks [temporalmedian](https://github.com/dubhater/vapoursynth-temporalmedian), [ctmf](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-CTMF), and [rgvs](https://github.com/vapoursynth/vs-removegrain).
+> * The plugin mvtools-sf release r9 and the r10 pre-release are both supported, but r9 is slightly faster for me.
+> * The plugin [zsmooth](https://github.com/adworacz/zsmooth) requires a CPU with AVX2 support (roughly post 2014). If your CPU does not have support, remove zsmooth and replace it with the slightly slower fallbacks [temporalmedian](https://github.com/dubhater/vapoursynth-temporalmedian), [ctmf](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-CTMF), and [rgvs](https://github.com/vapoursynth/vs-removegrain).
 
 <br />
 
