@@ -38,7 +38,7 @@ Check out hddvddegogo's comparisons [here](https://www.youtube.com/watch?v=BXc_U
 * [mvtools-sf](https://github.com/IFeelBloated/vapoursynth-mvtools-sf) *(optional, only for tr > 6)*
 * [motionmask](https://github.com/dubhater/vapoursynth-motionmask)
 * [fillborders](https://github.com/dubhater/vapoursynth-fillborders)
-* [zsmooth](https://github.com/adworacz/zsmooth)
+* [zsmooth](https://github.com/adworacz/zsmooth) *(release v0.14 or newer)*
 * [retinex](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-Retinex)
 * [tcanny](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-TCanny) *(release r14 or newer)*
 * [vszip](https://github.com/dnjulek/vapoursynth-zip) *(optional, slight speed boost)*
@@ -100,9 +100,11 @@ Shows areas that will be left untouched in pink. This includes areas with high m
 
 ## Alternative Usage Options
 Several projects integrated this script to simplify usage without the need for VapourSynth knowledge.
-* __[py_temporalfix](https://github.com/JepEtau/py_temporalfix)__ (Windows only)  
-  Simple portable command line tool to just do the temporal fix.
-* __[Hybrid](https://www.selur.de/)__ (Windows only)  
-  Video filter toolbox with a GUI. Can be a bit overwhelming due to the amount of features, but can upscale and do the temporal fix at the same time, as well as many more filters.
-* __[VSGAN-tensorrt-docker](https://github.com/styler00dollar/VSGAN-tensorrt-docker)__ (Windows and Linux)  
+* __[Vapourkit](https://github.com/Kim2091/vapourkit) (Windows only)__  
+  Video filter and upscaling program with a nice and easy GUI. Can upscale and do the temporal fix at the same time, as well as some other filters. This is the easiest way to use it, just change to advanced mode and add the filter.
+* __[py_temporalfix](https://github.com/JepEtau/py_temporalfix) (Windows only)__  
+  Simple portable command line tool to just do the temporal fix. Easy if you are okay with command line.
+* __[Hybrid](https://www.selur.de/) (Windows and Linux)__  
+  Video filter toolbox with a GUI. Can be a bit overwhelming due to the amount of features, but can upscale and do the temporal fix at the same time, as well as many many more filters.
+* __[VSGAN-tensorrt-docker](https://github.com/styler00dollar/VSGAN-tensorrt-docker) (Windows and Linux)__  
   Command line AI upscale and interpolation toolbox. Rudimentary knowledge of Docker and VapourSynth is recommended, but the readme also explains it. Can upscale and do the temporal fix at the same time.
