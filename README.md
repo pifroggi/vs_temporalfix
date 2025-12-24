@@ -101,7 +101,7 @@ Shows areas that will be left untouched in pink. This includes areas with high m
 ## Alternative Usage Options
 Several projects integrated this script to simplify usage without the need for VapourSynth knowledge.
 * __[Vapourkit](https://github.com/Kim2091/vapourkit) (Windows only)__  
-  Video filter and upscaling program with a nice and easy GUI. Can upscale and do the temporal fix at the same time, as well as other filters. This is the easiest way to use it, just switch to advanced mode and add the filter from the dropdown.
+  Video filter and upscaling program with an easy GUI. Can upscale and do the temporal fix at the same time, as well as other filters. This is the easiest way to use it. Just go to plugins, click install, and afterwards add the filter from the dropdown.
 * __[py_temporalfix](https://github.com/JepEtau/py_temporalfix) (Windows only)__  
   Simple portable command line tool to just do the temporal fix. Easy if you are okay with command line.
 * __[Hybrid](https://www.selur.de/) (Windows and Linux)__  
