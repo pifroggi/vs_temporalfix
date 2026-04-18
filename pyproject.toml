@@ -4,10 +4,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vs_temporalfix"
-version = "1.2.4"
+version = "2.0.0"
 description = "Add Temporal Coherence to Single Image AI Upscaling Models in Vapoursynth"
 authors = [{ name = "pifroggi" }]
-license = { text = "MIT" }
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+
+dependencies = [
+	"torch",
+    "numpy"
+]
+
+[tool.setuptools.package-data]
+vs_temporalfix = ["models/*.pth", "models/*.onnx"]
 
 [project.urls]
 Home-page = "https://github.com/pifroggi/vs_temporalfix"

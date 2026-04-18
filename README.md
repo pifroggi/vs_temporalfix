@@ -18,7 +18,6 @@
 
 # Add Temporal Coherence to Single Image AI Upscaling Models in VapourSynth
 Also known as temporal consistency, line wiggle fix, stabilization, deshimmering, temporal denoising, or temporal fix.  
-This runs on the CPU in parallel to the upscaling on the GPU. Intended for 2D animation.
 
 Check out hddvddegogo's comparisons [here](https://www.youtube.com/watch?v=BXc_Uddt2KA) and [here](https://www.youtube.com/watch?v=u6LHR9_m5rg).
 
@@ -30,34 +29,99 @@ Check out hddvddegogo's comparisons [here](https://www.youtube.com/watch?v=BXc_U
 
 <br />
 
-## Requirements
-* [fftw3.3](http://www.fftw.org/download.html) *(required by mvtools)*  
-    __Windows__: download and put `.dll` files in plugin folder  
-    __Linux__: `apt install libfftw3-dev` or compile from source
-* [mvtools](https://github.com/dubhater/vapoursynth-mvtools) *(release v24 or newer)*
-* [mvtools-sf](https://github.com/IFeelBloated/vapoursynth-mvtools-sf) *(optional, only for tr > 6)*
-* [motionmask](https://github.com/dubhater/vapoursynth-motionmask)
-* [fillborders](https://github.com/dubhater/vapoursynth-fillborders)
-* [zsmooth](https://github.com/adworacz/zsmooth) *(release v0.14 or newer)*
-* [retinex](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-Retinex)
-* [tcanny](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-TCanny) *(release r14 or newer)*
-* [vszip](https://github.com/dnjulek/vapoursynth-zip) *(optional, slight speed boost)*
+### Requirements
 
-## Setup
-Put the `vs_temporalfix.py` file into your vapoursynth scripts folder.  
-Or install via pip: `pip install -U git+https://github.com/pifroggi/vs_temporalfix.git`
+<details>
+<summary>Temporalfix AI Model</summary>
+
+If you only intend to use the TensorRT backend, you don't need to install the requirements for the CUDA/CPU backend, and vice versa.
+* __TensorRT backend__:
+  * [vs-mlrt with TensorRT](https://github.com/AmusementClub/vs-mlrt)
+* __CUDA/CPU backend__:
+  * [PyTorch with CUDA](https://pytorch.org/)
+  * `pip install numpy`
 
 <br />
 
-## Usage
+</details>
+<details>
+<summary>Temporalfix Classic</summary>
+
+If you only intend to use the Temporalfix AI Model, you don't need to install the requirements for Temporalfix Classic, and vice versa.
+* __Required__:  
+    * [mvtools](https://github.com/dubhater/vapoursynth-mvtools) *(release v24 or newer)*
+    * [motionmask](https://github.com/dubhater/vapoursynth-motionmask)
+    * [fillborders](https://github.com/dubhater/vapoursynth-fillborders)
+    * [zsmooth](https://github.com/adworacz/zsmooth) *(release v0.14 or newer)*
+    * [retinex](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-Retinex)
+    * [tcanny](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-TCanny) *(release r14 or newer)*
+* __Optional:__  
+    * [vszip](https://github.com/dnjulek/vapoursynth-zip) *(small speed boost)*
+    * [mvtools-sf](https://github.com/IFeelBloated/vapoursynth-mvtools-sf) *(only needed for tr > 6)*
+    * [fftw3.3](http://www.fftw.org/download.html) *(only needed for tr > 6)*  
+        __Windows__: download and put `.dll` files in plugin folder next to mvtools-sf  
+        __Linux__: via package manager e.g. `apt install libfftw3-dev` or compile from source
+
+<br />
+
+</details>
+
+
+### Setup
+Install/update via pip: `pip install -U git+https://github.com/pifroggi/vs_temporalfix.git`  
+Or put the entire `vs_temporalfix` folder into your vapoursynth scripts folder.
+
+<br />
+
+## Temporalfix AI Model
+The newest and most cabable version of temporalfix. It is easy to use and can run on Nvidia GPUs, which makes it much faster.
 
 ```python
-from vs_temporalfix import vs_temporalfix
-clip = vs_temporalfix(clip, strength=400, tr=6, denoise=False, exclude=None, debug=False)
+import vs_temporalfix
+clip = vs_temporalfix.model(clip, strength=2, tiles=1, backend="tensorrt", num_streams=1, exclude=None)
 ```
 
 __*`clip`*__  
 Temporally unstable upscaled clip. Should have no black borders.
+
+__*`strength`*__  
+Suppression strength of temporal inconsistencies in the range 1-3. Higher means more aggressive.  
+Higher resolution tends to need higher strength. Too high may oversmooth small movements.
+
+__*`tiles`* (optional)__  
+A higher amount of tiles will reduce VRAM usage at the cost of speed.  
+This should only be needed on low end hardware. Default tiles=1 uses the full frame, which is fastest.
+
+__*`backend`* (optional)__  
+The backend used to run the model:
+* `cpu` CPU mode using PyTorch *(very slow)*.
+* `cuda` GPU mode using PyTorch with CUDA support. Requires any Nvidia GPU *(fast)*.
+* `tensorrt` GPU mode using vs-mlrt with TensorRT support. Requires an Nvidia RTX GPU. On the first run, this mode will automatically build an engine, which may take a few minutes. Changing strength or input dimensions will trigger rebuilding, but previously build engines are saved *(very fast)*.
+
+__*`num_streams`* (optional)__  
+Number of parallel TensorRT streams. For high end GPUs higher can be faster, but requires more VRAM. Only effects the TensorRT backend.
+
+__*`exclude`* (optional)__  
+Optionally exclude scenes with intended temporal inconsistencies, or in case this causes unexpected issues.  
+Example setting 3 scenes: `exclude="[10 20] [600 900] [2000 2500]"`  
+First number in the brackets is the first frame of the scene, the second number is the last frame (inclusive).
+
+> [!TIP]
+> * Feedback is much appreciated. If the model does not work well for you or causes issues, feel free to open an issue, or contact me via Discord (pifroggi and/or tepete) and provide a sample. That will help me improve the models over time.
+
+<br />
+
+## Temporalfix Classic
+The original CPU based version. It can run on any CPU, but may miss some areas, is slow, harder to use and only works well for 2D animation.
+
+```python
+core.max_cache_size = 15000  # Add near top of vapoursynth script to increase frame cache, else temporalfix will be slow. High tr and resolution, or large filter scripts may need more.
+import vs_temporalfix
+clip = vs_temporalfix.classic(clip, strength=500, tr=6, denoise=False, exclude=None, debug=False)
+```
+
+__*`clip`*__  
+Temporally unstable upscaled clip.
 
 __*`strength`*__  
 Suppression strength of temporal inconsistencies. Higher means more aggressive. 400-700 works great in most cases.  
@@ -80,31 +144,32 @@ First number in the brackets is the first frame of the scene, the second number 
 __*`debug`* (optional)__  
 Shows areas that will be left untouched in pink. This includes areas with high motion, scene changes and previously excluded scenes. May help while tuning parameters to see if the area is even affected.
 
-> [!CAUTION]
-> * If vs_temporalfix is very slow for you, try adding `core.max_cache_size = 15000` (15GB) to increase vapoursynth's frame cache. High tr and resolution or large filter scripts may need even more.
-
 > [!TIP]
-> * Crop any black borders on the input clip, as those may cause ghosting on bright frames.
+> * Crop any black borders on the input clip, as in temporalfix classic those may cause ghosting on bright frames.
 > * There is a big drop in performance for tr > 6, due to switching from mvtools to mvtools-sf, which is slower.
-> * The plugin mvtools-sf release r9 and the r10 pre-release are both supported, but r9 is slightly faster for me.
+> * The plugin [mvtools-sf](https://github.com/IFeelBloated/vapoursynth-mvtools-sf) release r9 and the r10 pre-release are both supported, but r9 is slightly faster for me.
 > * The plugin [zsmooth](https://github.com/adworacz/zsmooth) requires a CPU with AVX2 support (roughly post 2014). If your CPU does not have support, remove zsmooth and replace it with the slightly slower fallbacks [temporalmedian](https://github.com/dubhater/vapoursynth-temporalmedian), [ctmf](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-CTMF), and [rgvs](https://github.com/vapoursynth/vs-removegrain).
 
 <br />
 
 ## Benchmarks
+Model benchmarks were done on a RTX 4090 GPU and Classic benchmarks on a Ryzen 5900X CPU.
 
-| Hardware    | Resolution | TR | Average FPS
-| ----------- | ---------- | -- | -----------
-| Ryzen 5900X | 1440x1080  | 6  | ~8 fps
-| Ryzen 5900X | 2880x2160  | 6  | ~5 fps
+| Resolution   | Model (TensorRT) | Model (CUDA) | Classic (with tr=6)
+| ------------ | -------- | -------- | -------
+| 720x480      | ~320 fps | ~70 fps  | ~35 fps
+| 1440x1080    | ~80 fps  | ~32 fps  | ~8 fps
+| 2880x2160    | ~20 fps  | ~8 fps   | ~5 fps
+
+<br />
 
 ## Alternative Usage Options
 Several projects integrated this script to simplify usage without the need for VapourSynth knowledge.
-* __[Vapourkit](https://github.com/Kim2091/vapourkit) (Windows only)__  
-  Video filter and upscaling program with an easy GUI. Can upscale and do the temporal fix at the same time, as well as other filters. This is the easiest way to use it. Just go to plugins, click install, and afterwards add the filter from the dropdown.
-* __[py_temporalfix](https://github.com/JepEtau/py_temporalfix) (Windows only)__  
+* __[Vapourkit](https://github.com/Kim2091/vapourkit) (Temporalfix Classic only, Windows only)__  
+  Video filter and upscaling program with an easy GUI. Can upscale and do the temporal fix at the same time, as well as many other filters. This is the easiest way to use it. Just go to plugins, click install, and afterwards add the filter from the dropdown.
+* __[Hybrid](https://www.selur.de/) (Temporalfix Classic only, Windows and Linux)__  
+  Video filter toolbox with a GUI. Can be a bit overwhelming due to the amount of features, but can upscale and do the temporal fix at the same time, as well as many more filters.
+* __[py_temporalfix](https://github.com/JepEtau/py_temporalfix) (Temporalfix Classic only, Windows only)__  
   Simple portable command line tool to just do the temporal fix. Easy if you are okay with command line.
-* __[Hybrid](https://www.selur.de/) (Windows and Linux)__  
-  Video filter toolbox with a GUI. Can be a bit overwhelming due to the amount of features, but can upscale and do the temporal fix at the same time, as well as many many more filters.
-* __[VSGAN-tensorrt-docker](https://github.com/styler00dollar/VSGAN-tensorrt-docker) (Windows and Linux)__  
+* __[VSGAN-tensorrt-docker](https://github.com/styler00dollar/VSGAN-tensorrt-docker) (Temporalfix Classic only, Windows and Linux)__  
   Command line AI upscale and interpolation toolbox. Rudimentary knowledge of Docker and VapourSynth is recommended, but the readme also explains it. Can upscale and do the temporal fix at the same time.
