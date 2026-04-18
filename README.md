@@ -19,15 +19,9 @@
 # Add Temporal Coherence to Single Image AI Upscaling Models in VapourSynth
 Also known as temporal consistency, line wiggle fix, stabilization, deshimmering, temporal denoising, or temporal fix.  
 
-Check out hddvddegogo's comparisons [here](https://www.youtube.com/watch?v=BXc_Uddt2KA) and [here](https://www.youtube.com/watch?v=u6LHR9_m5rg).
-
-
-
-<p align="center">
-    <img src="README_img1.gif"/>
-</p>
-
 <br />
+
+https://github.com/user-attachments/assets/f48545d6-2850-456c-84f4-718339bb3c63
 
 ### Requirements
 
@@ -107,7 +101,7 @@ Example setting 3 scenes: `exclude="[10 20] [600 900] [2000 2500]"`
 First number in the brackets is the first frame of the scene, the second number is the last frame (inclusive).
 
 > [!TIP]
-> * Feedback is much appreciated. If the model does not work well for you or causes issues, feel free to open an issue, or contact me via Discord (pifroggi and/or tepete) and provide a sample. That will help me improve the models over time.
+> * Feedback is much appreciated. If the model does not work well for you or causes issues, feel free to open an issue, or contact me via Discord (pifroggi or tepete) and provide a sample. That will help me improve the models over time.
 
 <br />
 
@@ -145,7 +139,7 @@ __*`debug`* (optional)__
 Shows areas that will be left untouched in pink. This includes areas with high motion, scene changes and previously excluded scenes. May help while tuning parameters to see if the area is even affected.
 
 > [!TIP]
-> * Crop any black borders on the input clip, as in temporalfix classic those may cause ghosting on bright frames.
+> * Crop any black borders on the input clip, in temporalfix classic those may cause ghosting on bright frames.
 > * There is a big drop in performance for tr > 6, due to switching from mvtools to mvtools-sf, which is slower.
 > * The plugin [mvtools-sf](https://github.com/IFeelBloated/vapoursynth-mvtools-sf) release r9 and the r10 pre-release are both supported, but r9 is slightly faster for me.
 > * The plugin [zsmooth](https://github.com/adworacz/zsmooth) requires a CPU with AVX2 support (roughly post 2014). If your CPU does not have support, remove zsmooth and replace it with the slightly slower fallbacks [temporalmedian](https://github.com/dubhater/vapoursynth-temporalmedian), [ctmf](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-CTMF), and [rgvs](https://github.com/vapoursynth/vs-removegrain).
