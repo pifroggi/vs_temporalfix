@@ -39,18 +39,19 @@ def _motion_search_prefilter(clip, thsad=250, tr=6):
 
 def classic(clip, strength=500, tr=6, denoise=False, exclude=None, debug=False):
     """Add temporal coherence to single image AI upscaling models. Also known as temporal consistency, line wiggle fix, stabilization, deshimmering. 
-    This is the original CPU based version. It can run on any CPU, but may miss some areas, is slow and only works well for 2D animation.
+    This is the original CPU based version. It can run on any CPU, but may miss some areas, is slow and only works well for 2D animation. Check the 
+    tips at the bottom for important usage information!
 
     Args:
         clip: Temporally unstable upscaled clip.
         strength: Suppression strength of temporal inconsistencies. Higher means more aggressive. `400-700` works great in most cases. 
             The best way to finetune is to find a static scene and adjust till lines and details are stable. 
             Reduce if you get blending/ghosting on small movements, especially in dark or hazy scenes.
-        tr: Temporal radius sets the number of frames to average over. `
+        tr: Temporal radius sets the number of frames to average over. 
             Higher means more stable, especially on slow pans and zooms, but is slower. `6` works great in most cases. 
             The best way to finetune is to find a slow pan or zoom and adjust till lines and details are stable.
         denoise: Removes grain and low frequency noise/flicker left over by the main processing step. Only enable if these issues actually exist! 
-            It risks to remove some details like every denoiser, but is useful if you're planning to denoise anyway and has the benefit of almost
+            It risks to remove some details like every denoiser, but is useful if you're planning to denoise anyway and has the benefit of almost 
             no performance impact compared to using an additional denoising filter.
         exclude: Optionally exclude scenes with intended temporal inconsistencies, or in case this causes unexpected issues. 
             Example setting 3 scenes: `exclude="[10 20] [600 900] [2000 2500]"`. 
@@ -58,6 +59,7 @@ def classic(clip, strength=500, tr=6, denoise=False, exclude=None, debug=False):
         debug: Shows areas that will be left untouched in pink. This includes areas with high motion, scene changes and previously excluded scenes. 
             May help while tuning parameters to see if the area is even affected.
 
+            Tip: It is important to increase the default frame cache by adding `core.max_cache_size = 15000` near top of vapoursynth script, else temporalfix classic will be very slow! High tr and resolution, or large filter scripts may need more.  
             Tip: Crop any black borders on the input clip, as those may cause ghosting on bright frames.  
             Tip: There is a big drop in performance for `tr > 6`, due to switching from `mvtools` to `mvtools-sf`, which is slower.
     """
