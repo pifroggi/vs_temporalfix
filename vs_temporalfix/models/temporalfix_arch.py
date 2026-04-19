@@ -2,6 +2,8 @@
 # Architecture by pifroggi https://github.com/pifroggi/vs_temporalfix
 # or tepete and pifroggi on Discord
 
+# Flow prediction and masking idea from RIFE https://github.com/hzwer/ECCV2022-RIFE
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
