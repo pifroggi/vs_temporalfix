@@ -59,7 +59,8 @@ def classic(clip, strength=500, tr=6, denoise=False, exclude=None, debug=False):
         debug: Shows areas that will be left untouched in pink. This includes areas with high motion, scene changes and previously excluded scenes. 
             May help while tuning parameters to see if the area is even affected.
 
-            Tip: It is important to increase the default frame cache by adding `core.max_cache_size = 15000` near top of vapoursynth script, else temporalfix classic will be very slow! High tr and resolution, or large filter scripts may need more.  
+            Tip: It is important to increase the default frame cache by adding `core.max_cache_size = 15000` near the top of your vapoursynth script, 
+            else temporalfix classic will be very slow! High tr and resolution, or large filter scripts may need more.  
             Tip: Crop any black borders on the input clip, as those may cause ghosting on bright frames.  
             Tip: There is a big drop in performance for `tr > 6`, due to switching from `mvtools` to `mvtools-sf`, which is slower.
     """
