@@ -2,8 +2,6 @@
 # Script, architecture, and model training by pifroggi https://github.com/pifroggi/vs_temporalfix
 # or tepete and pifroggi on Discord
 
-# Frame alignment and masking idea from RIFE https://github.com/hzwer/ECCV2022-RIFE
-
 import os
 import shutil
 import logging
@@ -261,7 +259,7 @@ def _tensorrt_inference(input_clips, onnx_path, engine_dir, model_name, clip_w, 
     return out
 
 
-def _tensorrt(clip, strength=2, tiles=1, num_streams=1, exclude=None):
+def _tensorrt(clip, strength=2, tiles=1, num_streams=1, engine_folder=None, exclude=None):
     
     # checks
     if not isinstance(clip, vs.VideoNode):
@@ -295,7 +293,7 @@ def _tensorrt(clip, strength=2, tiles=1, num_streams=1, exclude=None):
     force_rebuild = False
     current_dir   = os.path.dirname(os.path.abspath(__file__))
     onnx_path     = os.path.join(current_dir, "models", model_file)
-    engine_dir    = os.path.join(current_dir, "engines")
+    engine_dir    = os.path.join(current_dir, "engines") if engine_folder is None else os.path.abspath(engine_folder)
 
     # shift and inference
     clip = core.std.Expr(clip, expr=["x 0 max 1 min"])  # clamp
@@ -305,7 +303,7 @@ def _tensorrt(clip, strength=2, tiles=1, num_streams=1, exclude=None):
     return exclude_regions(out, clip, exclude=exclude)  # exclude regions from temporalfix
 
 
-def model(clip, strength=2, tiles=1, backend="tensorrt", num_streams=1, exclude=None):
+def model(clip, strength=2, tiles=1, backend="tensorrt", num_streams=1, engine_folder=None, exclude=None):
     """Add temporal coherence to single image AI upscaling models. Also known as temporal consistency, line wiggle fix, stabilization, deshimmering.
 
     Args:
@@ -319,6 +317,7 @@ def model(clip, strength=2, tiles=1, backend="tensorrt", num_streams=1, exclude=
             - `cuda` = GPU mode using PyTorch with CUDA support. Requires any Nvidia GPU (faster).
             - `tensorrt` = GPU mode using vs-mlrt with TensorRT support. Requires an Nvidia RTX GPU (fastest).
         num_streams: Number of parallel TensorRT streams. For high end GPUs higher can be faster, but requires more VRAM. Only effects the TensorRT backend.
+        engine_folder: Optional path to the TensorRT engine storage location. By default engines are stored in `vs_temporalfix/engines`. Only effects the TensorRT backend.
         exclude: Optionally exclude scenes with intended temporal inconsistencies, or in case this causes unexpected issues. 
             Example setting 3 scenes: `exclude="[10 20] [600 900] [2000 2500]"`. 
             First number in the brackets is the first frame of the scene, the second number is the last frame (inclusive).
@@ -327,5 +326,5 @@ def model(clip, strength=2, tiles=1, backend="tensorrt", num_streams=1, exclude=
     if backend in ["cpu", "cuda"]:
         return _pytorch(clip, strength=strength, tiles=tiles, device=backend, exclude=exclude)
     if backend in ["tensorrt", "trt"]:
-        return _tensorrt(clip, strength=strength, tiles=tiles, num_streams=num_streams, exclude=exclude)
+        return _tensorrt(clip, strength=strength, tiles=tiles, num_streams=num_streams, engine_folder=engine_folder, exclude=exclude)
     raise ValueError("vs_temporalfix: Backend must be 'cpu', 'cuda', or 'tensorrt'.")
