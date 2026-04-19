@@ -16,8 +16,8 @@
 
 
 
-# Add Temporal Coherence to Single Image AI Upscaling Models in VapourSynth
-Also known as temporal consistency, line wiggle fix, stabilization, deshimmering, temporal denoising, or temporal fix.  
+# Add Temporal Coherence to AI Upscales in VapourSynth
+When using SISR models (single image super resolution) on video, they tend to create slightly different results each frame. Temporalfix is a post filter that averages these results over multiple frames, which removes temporal inconsistencies like fizzle or wiggly lines. Also known as stabilization, deshimmering, temporal denoising, or temporal fix.
 
 <br />
 
@@ -68,7 +68,7 @@ Or put the entire `vs_temporalfix` folder into your vapoursynth scripts folder.
 <br />
 
 ## Temporalfix AI Model
-The newest and most cabable version of temporalfix. It is easy to use and can run on Nvidia GPUs, which makes it much faster.
+The newest and most capable version of temporalfix. It is easy to use and can run on Nvidia GPUs, which makes it very fast.
 
 ```python
 import vs_temporalfix
@@ -101,7 +101,7 @@ Example setting 3 scenes: `exclude="[10 20] [600 900] [2000 2500]"`
 First number in the brackets is the first frame of the scene, the second number is the last frame (inclusive).
 
 > [!TIP]
-> * Feedback is much appreciated. If the model does not work well for you or causes issues, feel free to open an issue, or contact me via Discord (pifroggi or tepete) and provide a sample. That will help me improve the models over time.
+> Feedback is much appreciated. If the model does not work well for you or causes issues, feel free to open an issue, or contact me via Discord (pifroggi or tepete) and provide a sample. That will help improve it over time.
 
 <br />
 
