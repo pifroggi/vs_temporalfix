@@ -17,7 +17,7 @@
 
 
 # Add Temporal Coherence to AI Upscales in VapourSynth
-When using SISR models (single image super resolution) on video, they tend to create slightly different results each frame. Temporalfix is a post filter that averages these results over multiple frames, which removes temporal inconsistencies like fizzle or wiggly lines. Also known as stabilization, deshimmering, temporal denoising, or temporal fix.
+When using SISR models (single image super resolution) on video, they tend to create slightly different results each frame. Temporalfix is a post filter that averages these results over multiple frames, removing temporal inconsistencies like fizzle or wiggly lines. Also known as stabilization, deshimmering, temporal denoising, or temporal fix.
 
 <br />
 
@@ -72,11 +72,11 @@ The newest and most capable version of temporalfix. It is easy to use and can ru
 
 ```python
 import vs_temporalfix
-clip = vs_temporalfix.model(clip, strength=2, tiles=1, backend="tensorrt", num_streams=1, exclude=None)
+clip = vs_temporalfix.model(clip, strength=2, tiles=1, backend="tensorrt", num_streams=1, engine_folder=None, exclude=None)
 ```
 
 __*`clip`*__  
-Temporally unstable upscaled clip. Should have no black borders.
+Temporally unstable upscaled clip.
 
 __*`strength`*__  
 Suppression strength of temporal inconsistencies in the range 1-3. Higher means more aggressive.  
@@ -90,15 +90,17 @@ __*`backend`* (optional)__
 The backend used to run the model:
 * `cpu` CPU mode using PyTorch *(very slow)*.
 * `cuda` GPU mode using PyTorch with CUDA support. Requires any Nvidia GPU *(fast)*.
-* `tensorrt` GPU mode using vs-mlrt with TensorRT support. Requires an Nvidia RTX GPU. On the first run, this mode will automatically build an engine, which may take a few minutes. Changing strength or input dimensions will trigger rebuilding, but previously build engines are saved *(very fast)*.
+* `tensorrt` GPU mode using vs-mlrt with TensorRT support. Requires an Nvidia RTX GPU. On the first run, this mode will automatically build an engine, which may take a few minutes. Changing strength or input dimensions will trigger rebuilding, but previously build engines are stored *(very fast)*.
 
 __*`num_streams`* (optional)__  
 Number of parallel TensorRT streams. For high end GPUs higher can be faster, but requires more VRAM. Only effects the TensorRT backend.
 
+__*`engine_folder`* (optional)__  
+Optional path to the TensorRT engine storage location. By default engines are stored in `vs_temporalfix/engines`. Only effects the TensorRT backend.
+
 __*`exclude`* (optional)__  
-Optionally exclude scenes with intended temporal inconsistencies, or in case this causes unexpected issues.  
-Example setting 3 scenes: `exclude="[10 20] [600 900] [2000 2500]"`  
-First number in the brackets is the first frame of the scene, the second number is the last frame (inclusive).
+Optionally exclude scenes with intended temporal inconsistencies.  
+Brackets define excluded frame ranges. Example for two scenes: `exclude="[10 20] [600 900]"`
 
 > [!TIP]
 > Feedback is much appreciated. If the model does not work well for you or causes issues, feel free to open an issue, or contact me via Discord (pifroggi or tepete) and provide a sample. That will help improve it over time.
@@ -131,9 +133,8 @@ __*`denoise`* (optional)__
 Removes grain and low frequency noise/flicker left over by the main processing step. Only enable if these issues actually exist! It risks to remove some details like every denoiser, but is useful if you're planning to denoise anyway and has the benefit of almost no performance impact compared to using an additional denoising filter.
 
 __*`exclude`* (optional)__  
-Optionally exclude scenes with intended temporal inconsistencies, or in case this causes unexpected issues.  
-Example setting 3 scenes: `exclude="[10 20] [600 900] [2000 2500]"`  
-First number in the brackets is the first frame of the scene, the second number is the last frame (inclusive).
+Optionally exclude scenes with intended temporal inconsistencies.  
+Brackets define excluded frame ranges. Example for two scenes: `exclude="[10 20] [600 900]"`
 
 __*`debug`* (optional)__  
 Shows areas that will be left untouched in pink. This includes areas with high motion, scene changes and previously excluded scenes. May help while tuning parameters to see if the area is even affected.
