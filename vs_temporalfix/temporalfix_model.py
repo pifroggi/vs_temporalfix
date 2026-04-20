@@ -56,7 +56,7 @@ def _pytorch(clip, strength=2, tiles=1, device="cuda", exclude=None):
 
     # select model
     if strength == 1:
-        model_file = "temporalfix_s1_v1.pth"
+        model_file = "temporalfix_s1_v1.1.pth"
     elif strength == 2:
         model_file = "temporalfix_s2_v1.pth"
     elif strength == 3:
@@ -275,8 +275,8 @@ def _tensorrt(clip, strength=2, tiles=1, num_streams=1, engine_folder=None, excl
     
     # select model
     if strength == 1:
-        model_file = "temporalfix_s1_v1_op18_fp16.onnx"
-        model_name = "temporalfix_s1_v1"
+        model_file = "temporalfix_s1_v1.1_op18_fp16.onnx"
+        model_name = "temporalfix_s1_v1.1"
     elif strength == 2:
         model_file = "temporalfix_s2_v1_op18_fp16.onnx"
         model_name = "temporalfix_s2_v1"
