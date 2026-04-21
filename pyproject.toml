@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=77.0.3", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "vs_temporalfix"
-version = "2.0.0"
+version = "2.1.0"
 description = "Add Temporal Coherence to Single Image AI Upscaling Models in Vapoursynth"
 authors = [{ name = "pifroggi" }]
 license = "Apache-2.0"
