@@ -271,7 +271,7 @@ def classic(clip, strength=500, tr=6, denoise=False, exclude=None, debug=False):
     if exclude is not None:
         if debug:
             orig = core.std.Levels(orig, gamma=2)  # visualize excluded frames
-        clip = ExcludeRegions(clip, orig, exclude=exclude)
+        clip = exclude_regions(clip, orig, exclude=exclude)
     
     # return result
     return clip
