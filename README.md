@@ -43,9 +43,9 @@ If you only intend to use the TensorRT backend, you don't need to install the re
 
 If you only intend to use the Temporalfix AI Model, you don't need to install the requirements for Temporalfix Classic, and vice versa.
 * __Required__:  
-    * [mvtools](https://github.com/dubhater/vapoursynth-mvtools) *(release v24 or newer)*
-    * [motionmask](https://github.com/dubhater/vapoursynth-motionmask)
-    * [fillborders](https://github.com/dubhater/vapoursynth-fillborders)
+    * [mvtools](https://github.com/dubhatervapoursynth/vapoursynth-mvtools) *(release v24 or newer)*
+    * [motionmask](https://github.com/dubhatervapoursynth/vapoursynth-motionmask)
+    * [fillborders](https://github.com/dubhatervapoursynth/vapoursynth-fillborders)
     * [zsmooth](https://github.com/adworacz/zsmooth) *(release v0.14 or newer)*
     * [retinex](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-Retinex)
     * [tcanny](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-TCanny) *(release r14 or newer)*
@@ -68,7 +68,7 @@ Or put the entire `vs_temporalfix` folder into your vapoursynth scripts folder.
 <br />
 
 ## Temporalfix AI Model
-The newest and most capable version of temporalfix. It is easy to use and can run on Nvidia GPUs, which makes it very fast.
+The newest and most capable version of temporalfix. It is easy to use and can run very fast on Nvidia GPUs.
 
 ```python
 import vs_temporalfix
@@ -108,7 +108,7 @@ Brackets define excluded frame ranges. Example for two scenes: `exclude="[10 20]
 <br />
 
 ## Temporalfix Classic
-The original CPU based version. It can run on any CPU, but may miss some areas, is slow, harder to use and only works well for 2D animation.
+The original CPU based version. It is slower, harder to use, may miss some areas, and only works for 2D animation.
 
 ```python
 core.max_cache_size = 15000  # Add near top of vapoursynth script to increase frame cache, else temporalfix will be slow. High tr and resolution, or large filter scripts may need more.
@@ -137,7 +137,7 @@ Optionally exclude scenes with intended temporal inconsistencies.
 Brackets define excluded frame ranges. Example for two scenes: `exclude="[10 20] [600 900]"`
 
 __*`debug`* (optional)__  
-Shows areas that will be left untouched in pink. This includes areas with high motion, scene changes and previously excluded scenes. May help while tuning parameters to see if the area is even affected.
+Shows areas that will not be fixed in pink. This includes areas with high motion, scene changes and excluded scenes. Can help while tuning parameters to see if the area is even affected.
 
 > [!TIP]
 > * Crop any black borders on the input clip, in temporalfix classic those may cause ghosting on bright frames.
@@ -158,9 +158,9 @@ Model benchmarks were done on a RTX 4090 GPU and Classic benchmarks on a Ryzen 5
 
 <br />
 
-## Alternative Usage Options
-Several projects integrated this script to simplify usage without the need for VapourSynth knowledge.
-* __[Vapourkit](https://github.com/Kim2091/vapourkit) (Temporalfix Classic only, Windows only)__  
+## Third-Party Integrations
+Several projects integrated temporalfix to simplify usage without the need for vapoursynth knowledge. Feel free to contact me if you want to be part of this list.
+* __[Vapourkit](https://github.com/Kim2091/vapourkit) (Windows only)__  
   Video filter and upscaling program with an easy GUI. Can upscale and do the temporal fix at the same time, as well as many other filters. This is the easiest way to use it. Just go to plugins, click install, and afterwards add the filter from the dropdown.
 * __[Hybrid](https://www.selur.de/) (Temporalfix Classic only, Windows and Linux)__  
   Video filter toolbox with a GUI. Can be a bit overwhelming due to the amount of features, but can upscale and do the temporal fix at the same time, as well as many more filters.
