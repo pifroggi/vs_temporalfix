@@ -164,9 +164,9 @@ Several projects integrated temporalfix to simplify usage without the need for v
   Video filter and upscaling program with an easy GUI. This is the easiest way to use it. Just go to plugins, click install, then click add filter and add Temporalfix.
 * __[Hybrid](https://www.selur.de/) (Temporalfix Classic only, Windows and Linux)__  
   Video filter toolbox with a GUI. Can be a bit overwhelming due to the amount of features and filters, but Temporalfix Classic is one of them.
+* __[VSGAN-tensorrt-docker](https://github.com/styler00dollar/VSGAN-tensorrt-docker) (Windows and Linux)__  
+  Command line AI upscale and interpolation toolbox that comes with both versions of Temporalfix. Rudimentary knowledge of Docker and VapourSynth is recommended, but the readme also explains it.
+* __[mpv-cHiDeNoise-AI](https://github.com/animeojisan/mpv-cHiDeNoise-AI) (Windows only)__  
+  AI upscaling video player based on mpv, which includes the Temporalfix AI Models and a lighter modified version of Temporalfix Classic for real-time playback. Mainly intended for japanese audience.
 * __[py_temporalfix](https://github.com/JepEtau/py_temporalfix) (Temporalfix Classic only, Windows only)__  
   Simple portable command line tool to just run Temporalfix Classic. Easy if you are okay with command line.
-* __[VSGAN-tensorrt-docker](https://github.com/styler00dollar/VSGAN-tensorrt-docker) (Temporalfix Classic only, Windows and Linux)__  
-  Command line AI upscale and interpolation toolbox that comes with Temporalfix Classic. Rudimentary knowledge of Docker and VapourSynth is recommended, but the readme also explains it.
-* __[mpv-cHiDeNoise-AI](https://github.com/animeojisan/mpv-cHiDeNoise-AI) (Temporalfix Classic only, Windows only)__  
-  AI upscaling video player based on mpv, which includes a modified lighter version of Temporalfix Classic intended for real-time playback. Mainly intended for japanese audience.
