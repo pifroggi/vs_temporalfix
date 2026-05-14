@@ -161,7 +161,7 @@ Model benchmarks were done on a RTX 4090 GPU and Classic benchmarks on a Ryzen 5
 ## Third-Party Integrations
 Several projects integrated temporalfix to simplify usage without the need for vapoursynth knowledge. Feel free to contact me if you want to be part of this list.
 * __[Vapourkit](https://github.com/Kim2091/vapourkit) (Windows only)__  
-  Video filter and upscaling program with an easy GUI. This is the easiest way to use it. Just go to plugins, click install, then click add filter and add Temporalfix.
+  Video filter and upscaling program with an easy GUI. This is the easiest way to use it. Just click on add filter and add one of the two Temporalfix versions.
 * __[Hybrid](https://www.selur.de/) (Temporalfix Classic only, Windows and Linux)__  
   Video filter toolbox with a GUI. Can be a bit overwhelming due to the amount of features and filters, but Temporalfix Classic is one of them.
 * __[VSGAN-tensorrt-docker](https://github.com/styler00dollar/VSGAN-tensorrt-docker) (Windows and Linux)__  
