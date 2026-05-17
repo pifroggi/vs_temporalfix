@@ -108,7 +108,7 @@ Brackets define excluded frame ranges. Example for two scenes: `exclude="[10 20]
 <br />
 
 ## Temporalfix Classic
-The original CPU based version. It is slower, harder to use, may miss some areas, and only works for 2D animation.
+The original CPU based version. It is slower, harder to use, may miss some areas, and only works well for 2D animation.
 
 ```python
 core.max_cache_size = 15000  # Add near top of vapoursynth script to increase frame cache, else temporalfix will be slow. High tr and resolution, or large filter scripts may need more.
@@ -140,7 +140,7 @@ __*`debug`* (optional)__
 Shows areas that will not be fixed in pink. This includes areas with high motion, scene changes and excluded scenes. Can help while tuning parameters to see if the area is even affected.
 
 > [!TIP]
-> * Crop any black borders on the input clip, in temporalfix classic those may cause ghosting on bright frames.
+> * Crop any black borders on the input clip! In temporalfix classic they can cause ghosting on bright frames.
 > * There is a big drop in performance for tr > 6, due to switching from mvtools to mvtools-sf, which is slower.
 > * The plugin [mvtools-sf](https://github.com/IFeelBloated/vapoursynth-mvtools-sf) release r9 and the r10 pre-release are both supported, but r9 is slightly faster for me.
 > * The plugin [zsmooth](https://github.com/adworacz/zsmooth) requires a CPU with AVX2 support (roughly post 2014). If your CPU does not have support, remove zsmooth and replace it with the slightly slower fallbacks [temporalmedian](https://github.com/dubhater/vapoursynth-temporalmedian), [ctmf](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-CTMF), and [rgvs](https://github.com/vapoursynth/vs-removegrain).
