@@ -21,7 +21,7 @@ When using SISR models (single image super resolution) on video, they tend to cr
 
 <br />
 
-https://github.com/user-attachments/assets/f48545d6-2850-456c-84f4-718339bb3c63
+https://github.com/user-attachments/assets/08702558-3476-4cca-9195-315ee8693407
 
 ### Requirements
 
@@ -76,7 +76,7 @@ clip = vs_temporalfix.model(clip, strength=2, tiles=1, backend="tensorrt", num_s
 ```
 
 __*`clip`*__  
-Temporally unstable upscaled clip.
+Temporally unstable upscaled clip. Must be in RGBH format.
 
 __*`strength`*__  
 Suppression strength of temporal inconsistencies in the range 1-3. Higher means more aggressive.  
@@ -117,7 +117,7 @@ clip = vs_temporalfix.classic(clip, strength=500, tr=6, denoise=False, exclude=N
 ```
 
 __*`clip`*__  
-Temporally unstable upscaled clip.
+Temporally unstable upscaled clip. Any format.
 
 __*`strength`*__  
 Suppression strength of temporal inconsistencies. Higher means more aggressive. 400-700 works great in most cases.  
