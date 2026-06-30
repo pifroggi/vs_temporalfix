@@ -207,14 +207,17 @@ def _get_engine(onnx_path, engine_dir, model_name, engine_w, engine_h, opt_level
 
     # else build new engine
     logging.warning("vs_temporalfix: Building new TensorRT engine for model %s with width=%d and height=%d. This may take a few minutes.", model_name, engine_w, engine_h)
-    opt_shapes = f"input:1x21x{engine_h}x{engine_w}"
+    trt_version = int(core.trt.Version()["tensorrt_version"].decode(errors="ignore"))
+    trt_version = [trt_version // 10000, (trt_version % 10000) // 100, trt_version % 100]
+    io_formats  = f"fp16:chw" if trt_version[0] < 11 else "chw"
+    opt_shapes  = f"input:1x21x{engine_h}x{engine_w}"
     cmd = [
         str(trtexec_path),
         "--stronglyTyped",
-        "--inputIOFormats=fp16:chw",
-        "--outputIOFormats=fp16:chw",
         "--skipInference",
         "--memPoolSize=workspace:4096",
+        f"--inputIOFormats={io_formats}",
+        f"--outputIOFormats={io_formats}",
         f"--onnx={onnx_path}",
         f"--saveEngine={engine_path}",
         f"--optShapes={opt_shapes}",
