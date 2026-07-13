@@ -3,21 +3,37 @@
 # or tepete and pifroggi on Discord
 
 import os
+import re
+import math
 import shutil
 import logging
 import subprocess
 import vapoursynth as vs
 from pathlib import Path
-from .utils import gen_shifts, get_tiles, get_spans, exclude_regions
+from .utils import basic_expr, gen_shifts, get_tiles, get_spans, exclude_regions, interpolate_onnx
 
 core = vs.core
 
 
 def _pytorch(clip, strength=2, tiles=1, device="cuda", exclude=None):
-    import torch
     import threading
     import numpy as np
     from collections import OrderedDict
+
+    if device == "cpu":
+        try:
+            import torch
+        except ImportError:
+            raise RuntimeError("vs_temporalfix: The CPU/CUDA backends require PyTorch. Please install it from https://pytorch.org/ or choose a different backend. For the CUDA backend specifically, install a version of PyTorch with CUDA support.") from None
+
+    if device == "cuda":
+        try:
+            import torch
+        except ImportError:
+            raise RuntimeError("vs_temporalfix: The CUDA backend requires PyTorch with CUDA. Please install a version of PyTorch with CUDA support from https://pytorch.org/ or choose a different backend.") from None
+        if not torch.cuda.is_available():
+            raise RuntimeError("vs_temporalfix: The CUDA backend requires PyTorch with CUDA, but the installed version has no CUDA support. Please upgrade to a version with CUDA support from https://pytorch.org/ or choose a different backend.")
+
     from .models.temporalfix_arch import temporalfix_arch
     os.environ["CUDA_MODULE_LOADING"] = "LAZY"
 
@@ -26,10 +42,12 @@ def _pytorch(clip, strength=2, tiles=1, device="cuda", exclude=None):
         raise TypeError("vs_temporalfix: Clip must be a vapoursynth clip.")
     if clip.format.id == vs.PresetVideoFormat.NONE or clip.width == 0 or clip.height == 0:
         raise TypeError("vs_temporalfix: Clip must have constant format and dimensions.")
-    if clip.num_frames < 2:
-        raise ValueError("vs_temporalfix: Clip must be at least 2 frames long.")
+    if clip.num_frames < 4:
+        raise ValueError("vs_temporalfix: Clip must be at least 4 frames long.")
     if clip.format.color_family != vs.RGB:
         raise ValueError("vs_temporalfix: Clip must be in RGB format.")
+    if strength < 0 or strength > 3:
+        raise ValueError("vs_temporalfix: Strength must be in the 0.0-3.0 range.")
 
     orig_clip   = clip
     clip_w      = clip.width
@@ -55,20 +73,33 @@ def _pytorch(clip, strength=2, tiles=1, device="cuda", exclude=None):
             tile_spans.append((tile_idx, x0, x1, y0, y1, dst_x0, dst_x1, dst_y0, dst_y1))
 
     # select model
-    if strength == 1:
-        model_file = "temporalfix_s1_v1.1.pth"
-    elif strength == 2:
-        model_file = "temporalfix_s2_v1.pth"
-    elif strength == 3:
-        model_file = "temporalfix_s3_v1.pth"
-    else:
-        raise ValueError("vs_temporalfix: Strength must be in the range 1-3.")
+    strength       = round(float(strength), 2)
+    strength_lower = math.floor(strength)
+    strength_upper = math.ceil(strength)
+    weighting      = strength - strength_lower
+    current_dir    = os.path.dirname(__file__)
+    model_files    = {
+        0: "temporalfix_s0_v1.pth",
+        1: "temporalfix_s1_v1.1.pth",
+        2: "temporalfix_s2_v1.pth",
+        3: "temporalfix_s3_v1.pth",
+    }
 
     # load model
-    current_dir = os.path.dirname(__file__)
-    model_path  = os.path.join(current_dir, "models", model_file)
+    def _load_state(model_file):
+        model_path = os.path.join(current_dir, "models", model_file)
+        return torch.load(model_path, map_location="cpu", weights_only=True)
+
+    if strength == 0:
+        return clip
+    if strength_lower == strength_upper:  # if both the same, load model directly
+        state = _load_state(model_files[strength_lower])
+    else:                                 # else load both and interpolate
+        state_lower = _load_state(model_files[strength_lower])
+        state_upper = _load_state(model_files[strength_upper])
+        state = OrderedDict((key, torch.lerp(value, state_upper[key], weighting) if torch.is_floating_point(value) else value) for key, value in state_lower.items())
+    
     model = temporalfix_arch(fixed_hw=(tile_h, tile_w), conf_thresh=0.6, min_support=1, gate_slope=12.0, count_slope=4.0)
-    state = torch.load(model_path, map_location="cpu", weights_only=True)
     model.load_state_dict(state, strict=True)
     model.eval().to(device)
     if fp16:
@@ -126,7 +157,7 @@ def _pytorch(clip, strength=2, tiles=1, device="cuda", exclude=None):
         for p in range(3):
             np.copyto(np.asarray(frame[p]), array[p])
 
-    def _process_frame(n, f):
+    def _pytorch_inference(n, f):
         with torch.inference_mode():
             out = f[3].copy()
 
@@ -148,87 +179,104 @@ def _pytorch(clip, strength=2, tiles=1, device="cuda", exclude=None):
     
     # clamp and convert
     if clip.format.sample_type == vs.FLOAT:
-        clip = core.std.Expr(clip, expr=["x 0 max 1 min"])
+        clip = basic_expr(clip, expr=["x 0 max 1 min"])
     if clip.format.id != req_format:
         clip = core.resize.Point(clip, format=req_format)
 
     # shift and inference
     input_clips = gen_shifts(clip, radius=3)          # [-3, -2, -1, 0, +1, +2, +3]
     FRAME_CACHE = LRUFrameCache(capacity=10 * tiles)  # cache converted frame tensors
-    out = core.std.ModifyFrame(clip, clips=input_clips, selector=_process_frame)
+    out = core.std.ModifyFrame(clip, clips=input_clips, selector=_pytorch_inference)
 
     # convert back and return
     if out.format.id != orig_format:
-        return core.resize.Point(out, format=orig_format)
+        out = core.resize.Point(out, format=orig_format)
     return exclude_regions(out, orig_clip, exclude=exclude)  # exclude regions from temporalfix
 
 
-def _get_trtexec():
-    # first search for tensorrt plugins, then check for trtexec
+def _get_builder(plugin_path, trt_version, cuda_major):
+    # finds compatible tensorrt engine builders
     exe_name = "trtexec.exe" if os.name == "nt" else "trtexec"
-    plugins_path = None
-
+    builders = []
+    errors   = []
+    
+    # check for python tensorrt
     try:
-        info = core.trt.Version()
-    except Exception as e:
-        raise RuntimeError("vs_temporalfix: Please install a version of vs-mlrt with TensorRT support.") from e
+        import tensorrt
+        package_version = list(map(int, tensorrt.__version__.split(".")[:3]))
+        if package_version == trt_version:
+            builders.append(["python", tensorrt])
+        else:
+            errors.append(f"Python TensorRT: Wrong version {'.'.join(map(str, package_version))}")
+    except ImportError:
+        errors.append("Python TensorRT: Not found.")
+    except Exception:
+        errors.append("Python TensorRT: Found but failed to check version.")
+    
+    # check for bundled trtexec
+    bundled_trtexec = Path(plugin_path) / "vsmlrt-cuda" / exe_name
+    if bundled_trtexec.is_file() and os.access(str(bundled_trtexec), os.X_OK):
+        builders.append(["trtexec", bundled_trtexec])
+    else:
+        errors.append(f"Bundled trtexec: Not found.")
 
-    path = info.get("path")
-
-    # get plugin path
-    if isinstance(path, bytes):
-        path = path.decode(errors="ignore")
-    if path:
-        plugins_path = os.path.dirname(path)
-
-    # try finding vsmlrt trtexec first, then check for system trtexec
-    if plugins_path is not None:
-        local_trtexec = Path(plugins_path) / "vsmlrt-cuda" / exe_name
-        if local_trtexec.is_file() and os.access(str(local_trtexec), os.X_OK):
-            return local_trtexec
-
+    # check for system trtexec
     system_trtexec = shutil.which("trtexec")
     if system_trtexec is not None:
-        return Path(system_trtexec)
+        try:
+            trtexec_path = Path(system_trtexec)
+            help_output  = subprocess.run([str(trtexec_path), "--help"], check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="locale", errors="replace")
+            help_output  = f"{help_output.stdout}\n{help_output.stderr}"
+            
+            trtexec_version = None
+            trtexec_version = re.search(r"\[TensorRT v(\d+)\]", help_output)
+            if trtexec_version is None:
+                raise RuntimeError("vs_temporalfix: Internal Error: Regex failed to find the version.")
 
-    raise FileNotFoundError("vs_temporalfix: trtexec not found. Please install a version of vs-mlrt with TensorRT support. Make sure to follow the installation instructions.")
+            trtexec_version = int(trtexec_version.group(1))
+            trtexec_version = [trtexec_version // 10000, (trtexec_version % 10000) // 100, trtexec_version % 100]
+            if trtexec_version == trt_version:
+                builders.append(["trtexec", trtexec_path])
+            else:
+                errors.append(f"System trtexec: Wrong version {'.'.join(map(str, trtexec_version))}")
+        except Exception:
+            errors.append("System trtexec: Found but failed to check version.")
+    else:
+        errors.append("System trtexec: Not found.")
+    
+    # return first compatible builder
+    if builders:
+        return builders[0]
+    
+    errors = "\n".join(f"{builder}" for builder in errors)
+    raise FileNotFoundError(f"vs_temporalfix: No compatible TensorRT engine builder found. Please install the python package 'tensorrt' or install trtexec. The required TensorRT version is {'.'.join(map(str, trt_version))}. The required CUDA version is {cuda_major}.\n{errors}")
 
 
-def _get_engine(onnx_path, engine_dir, model_name, engine_w, engine_h, opt_level=3, force_rebuild=False) -> str:
-    # build or get path to tensorrt engine
-    os.makedirs(engine_dir, exist_ok=True)  # create engine folder if needed
-    engine_name  = f"{model_name}_h{engine_h}_w{engine_w}_fp16.engine"
-    engine_path  = os.path.join(engine_dir, engine_name)
-    trtexec_path = _get_trtexec()
+def _build_engine_trtexec(onnx_path, engine_path, engine_w, engine_h, trt_version, trtexec_path):
+    # build engine using trtexec, supports trt 10 and 11
 
-    # if engine file exist, return it
-    if not force_rebuild and os.path.isfile(engine_path) and os.path.getsize(engine_path) >= 512:
-        return engine_path
-
-    # else build new engine
-    logging.warning("vs_temporalfix: Building new TensorRT engine for model %s with width=%d and height=%d. This may take a few minutes.", model_name, engine_w, engine_h)
-    trt_version = int(core.trt.Version()["tensorrt_version"].decode(errors="ignore"))
-    trt_version = [trt_version // 10000, (trt_version % 10000) // 100, trt_version % 100]
-    io_formats  = f"fp16:chw" if trt_version[0] < 11 else "chw"
-    opt_shapes  = f"input:1x21x{engine_h}x{engine_w}"
+    # settings
+    opt_shapes = f"input:1x21x{engine_h}x{engine_w}"
+    io_formats = f"fp16:chw" if trt_version[0] < 11 else "chw"
     cmd = [
         str(trtexec_path),
-        "--stronglyTyped",
+        *(["--stronglyTyped"] if trt_version[0] < 11 else []),
         "--skipInference",
         "--memPoolSize=workspace:4096",
+        "--builderOptimizationLevel=3",
         f"--inputIOFormats={io_formats}",
         f"--outputIOFormats={io_formats}",
         f"--onnx={onnx_path}",
         f"--saveEngine={engine_path}",
         f"--optShapes={opt_shapes}",
-        f"--builderOptimizationLevel={opt_level}",
     ]
 
+    # build
     try:
         result = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="locale", errors="replace")
     except subprocess.CalledProcessError as e:
         msg = (
-            "vs_temporalfix: trtexec failed while building the TensorRT engine.\n"
+            "vs_temporalfix: Internal Error: trtexec failed while building the TensorRT engine.\n"
             f"  Command: {' '.join(cmd)}\n"
             f"  Return code: {e.returncode}\n"
         )
@@ -238,13 +286,124 @@ def _get_engine(onnx_path, engine_dir, model_name, engine_w, engine_h, opt_level
             msg += f"\n=== trtexec stderr ===\n{e.stderr}"
         raise RuntimeError(msg) from e
 
-    logging.warning("vs_temporalfix: Engine building complete.")
-    return engine_path
+
+def _build_engine_python(onnx_path, engine_path, engine_w, engine_h, trt_package):
+    # build engine using tensorrt python bindings, supports only trt 11
+    trt = trt_package
+
+    # custom logger for errors
+    class _TrtLogger(trt.ILogger):
+        def __init__(self):
+            trt.ILogger.__init__(self)
+            self.messages = []
+        def log(self, severity, msg):
+            if severity <= trt.Logger.WARNING:
+                self.messages.append((severity, msg))
+        def get_log(self):
+            return "\n".join(f"  [{severity}] {msg}" for severity, msg in self.messages)
+
+    # initialize trt and load model
+    logger  = _TrtLogger()
+    builder = trt.Builder(logger)
+    network = builder.create_network()
+    config  = builder.create_builder_config()
+    parser  = trt.OnnxParser(network, logger)
+    if not parser.parse_from_file(str(onnx_path)):
+        errors = "\n".join(f"  {parser.get_error(i)}" for i in range(parser.num_errors))
+        raise RuntimeError(f"vs_temporalfix: Internal Error: TensorRT failed while parsing the ONNX model.\n{errors}")
+    
+    # settings
+    opt_shapes = (1, 21, engine_h, engine_w)                                                                          # optShapes
+    network.get_input(0).allowed_formats = network.get_output(0).allowed_formats = 1 << int(trt.TensorFormat.LINEAR)  # IOFormats:chw
+    config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 4096 << 20)                                            # workspace:4096
+    config.builder_optimization_level = 3                                                                             # builderOptimizationLevel=3
+
+    # build
+    profile = builder.create_optimization_profile()
+    profile.set_shape(network.get_input(0).name, opt_shapes, opt_shapes, opt_shapes)
+    config.add_optimization_profile(profile)
+    engine  = builder.build_serialized_network(network, config)
+    if engine is None:
+        log = logger.get_log()
+        msg = "vs_temporalfix: Internal Error: TensorRT failed while building the TensorRT engine."
+        if log:
+            msg += f"\n=== TensorRT log ===\n{log}"
+        raise RuntimeError(msg)
+    
+    # save engine
+    with open(engine_path, "wb") as f:
+        f.write(engine)
 
 
-def _tensorrt_inference(input_clips, onnx_path, engine_dir, model_name, clip_w, clip_h, tiles=1, overlap=64, opt_level=3, num_streams=1, force_rebuild=False):
+def _get_engine(model_files, onnx_dir, engine_dir, strength, engine_w, engine_h, force_rebuild=False) -> str:
+    # check plugin version
+    try:
+        info = core.trt.Version()
+    except Exception as e:
+        raise RuntimeError("vs_temporalfix: Please install a version of vs-mlrt with TensorRT support or choose a different backend.") from e
+    
+    # select model
+    strength_lower = math.floor(strength)
+    strength_upper = math.ceil(strength)
+    name_strength  = str(strength).rstrip("0").rstrip(".")  # remove extra zeros and dot if not needed
+
+    if strength_lower == strength_upper:  # if both the same, load model directly
+        model_file = model_files[strength_lower]
+        model_name = os.path.splitext(model_file)[0].split("_op")[0]
+        onnx_path  = os.path.join(onnx_dir, model_file)
+    else:                                 # else load both and interpolate linearly
+        model_file_lower = model_files[strength_lower]
+        model_file_upper = model_files[strength_upper]
+        name_lower = os.path.splitext(model_file_lower)[0].split("temporalfix_")[1].split("_op")[0]
+        name_upper = os.path.splitext(model_file_upper)[0].split("temporalfix_")[1].split("_op")[0]
+        model_name = f"temporalfix_s{name_strength}_[{name_lower}+{name_upper}]"
+        weighting  = strength - strength_lower
+        onnx_path  = [os.path.join(onnx_dir, model_file_lower), os.path.join(onnx_dir, model_file_upper)]
+    
+    # get path to tensorrt engine
+    os.makedirs(engine_dir, exist_ok=True)  # create engine folder if needed
+    engine_name  = f"{model_name}_h{engine_h}_w{engine_w}_fp16.engine"
+    engine_path  = os.path.join(engine_dir, engine_name)
+    temp_dir     = None
+    
+    # if engine file exist, return it
+    if not force_rebuild and os.path.isfile(engine_path) and os.path.getsize(engine_path) >= 512:
+        return engine_path
+    
+    # get plugin info
+    plugin_path = os.path.dirname(info["path"].decode(errors="ignore"))
+    trt_version = int(info["tensorrt_version"].decode(errors="ignore"))
+    trt_version = [trt_version // 10000, (trt_version % 10000) // 100, trt_version % 100]
+    cuda_major  = int(info["cuda_runtime_version"].decode(errors="ignore")) // 1000
+    
+    # interpolate onnx if needed
+    if isinstance(onnx_path, list):
+        import tempfile
+        temp_dir  = tempfile.TemporaryDirectory(prefix=f"{model_name}_", dir=engine_dir)
+        temp_path = os.path.join(temp_dir.name, f"{model_name}.onnx")
+        interpolate_onnx(onnx_path_lower=onnx_path[0], onnx_path_upper=onnx_path[1], save_path=temp_path, weighting=weighting)
+        onnx_path = temp_path
+    
+    # build new engine
+    logging.warning("vs_temporalfix: Building new TensorRT engine for strength=%s with width=%d and height=%d. This may take a few minutes.", name_strength, engine_w, engine_h)
+    try:
+        builder_info = _get_builder(plugin_path=plugin_path, trt_version=trt_version, cuda_major=cuda_major)
+        if builder_info[0] == "python":
+            _build_engine_python(onnx_path=onnx_path, engine_path=engine_path, engine_w=engine_w, engine_h=engine_h, trt_package=builder_info[1])
+        elif builder_info[0] == "trtexec":
+            _build_engine_trtexec(onnx_path=onnx_path, engine_path=engine_path, engine_w=engine_w, engine_h=engine_h, trt_version=trt_version, trtexec_path=builder_info[1])
+        else:
+            raise RuntimeError(f"vs_temporalfix: Internal Error: Unknown TensorRT engine builder: {builder_info[0]}")
+        logging.warning("vs_temporalfix: Engine building complete.")
+        return engine_path
+    finally:
+        if temp_dir is not None:
+            temp_dir.cleanup()
+
+
+def _tensorrt_inference(input_clips, model_files, onnx_dir, engine_dir, strength, clip_w, clip_h, tiles=1, overlap=64, num_streams=1, force_rebuild=False):
     tile_w, tile_h, _, _ = get_tiles(clip_w=clip_w, clip_h=clip_h, tiles=tiles, overlap=overlap)
-    engine_path = _get_engine(onnx_path=onnx_path, engine_dir=engine_dir, model_name=model_name, engine_w=tile_w, engine_h=tile_h, opt_level=opt_level, force_rebuild=force_rebuild)
+    engine_path = _get_engine(model_files=model_files, onnx_dir=onnx_dir, engine_dir=engine_dir, strength=strength, engine_w=tile_w, engine_h=tile_h, force_rebuild=force_rebuild)
     model_args  = dict(engine_path=engine_path, num_streams=num_streams, **(dict(tilesize=(tile_w, tile_h), overlap=(overlap, overlap)) if tiles > 1 else {}))
 
     # try inference, rebuild engine if it fails
@@ -255,7 +414,7 @@ def _tensorrt_inference(input_clips, onnx_path, engine_dir, model_name, clip_w, 
         serialization_keywords = ("serialize", "serialization", "deserialize", "deserialization")
         if any(k in err_msg for k in serialization_keywords) and not force_rebuild:
             logging.warning("vs_temporalfix: Engine loading failed. This may be due to a TensorRT or driver update. Rebuilding...")
-            model_args["engine_path"] = _get_engine(onnx_path=onnx_path, engine_dir=engine_dir, model_name=model_name, engine_w=tile_w, engine_h=tile_h, opt_level=opt_level, force_rebuild=True)
+            model_args["engine_path"] = _get_engine(model_files=model_files, onnx_dir=onnx_dir, engine_dir=engine_dir, strength=strength, engine_w=tile_w, engine_h=tile_h, force_rebuild=True)
             out = core.trt.Model(input_clips, **model_args)
         else:
             raise
@@ -269,41 +428,41 @@ def _tensorrt(clip, strength=2, tiles=1, num_streams=1, engine_folder=None, excl
         raise TypeError("vs_temporalfix: Clip must be a vapoursynth clip.")
     if clip.format.id  == vs.PresetVideoFormat.NONE or clip.width  == 0 or clip.height  == 0:
         raise TypeError("vs_temporalfix: Clip must have constant format and dimensions.")
-    if clip.num_frames < 2:
-        raise ValueError("vs_temporalfix: Clip must be at least 2 frames long.")
+    if clip.num_frames < 4:
+        raise ValueError("vs_temporalfix: Clip must be at least 4 frames long.")
     if clip.format.id not in [vs.RGBH]:
-        raise ValueError("vs_temporalfix: Clip must be in RGBH format for TensorRT backend.")
+        raise ValueError("vs_temporalfix: Clip must be in RGBH format for the TensorRT backend.")
+    if strength < 0 or strength > 3:
+        raise ValueError("vs_temporalfix: Strength must be in the 0.0-3.0 range.")
     if num_streams < 1:
         raise ValueError("vs_temporalfix: Number of parallel TensorRT streams (num_streams) must be at least 1.")
     
     # select model
-    if strength == 1:
-        model_file = "temporalfix_s1_v1.1_op18_fp16.onnx"
-        model_name = "temporalfix_s1_v1.1"
-    elif strength == 2:
-        model_file = "temporalfix_s2_v1_op18_fp16.onnx"
-        model_name = "temporalfix_s2_v1"
-    elif strength == 3:
-        model_file = "temporalfix_s3_v1_op18_fp16.onnx"
-        model_name = "temporalfix_s3_v1"
-    else:
-        raise ValueError("vs_temporalfix: Strength must be in the range 1-3.")
-    
+    orig_clip     = clip
+    strength      = round(float(strength), 2)
     clip_w        = clip.width
     clip_h        = clip.height
-    opt_level     = 3
     overlap       = min(64, int(64 * ((clip_w * clip_h) / (1920 * 1080)) ** 0.5))  # overlap gets smaller for smaller inputs
     force_rebuild = False
     current_dir   = os.path.dirname(os.path.abspath(__file__))
-    onnx_path     = os.path.join(current_dir, "models", model_file)
+    onnx_dir      = os.path.join(current_dir, "models")
     engine_dir    = os.path.join(current_dir, "engines") if engine_folder is None else os.path.abspath(engine_folder)
+    model_files   = {
+        0: "temporalfix_s0_v1_op18_fp16.onnx",
+        1: "temporalfix_s1_v1.1_op18_fp16.onnx",
+        2: "temporalfix_s2_v1_op18_fp16.onnx",
+        3: "temporalfix_s3_v1_op18_fp16.onnx",
+    }
+
+    if strength == 0:
+        return clip
 
     # shift and inference
-    clip = core.std.Expr(clip, expr=["x 0 max 1 min"])  # clamp
+    clip = basic_expr(clip, expr=["x 0 max 1 min"])  # clamp
     input_clips = gen_shifts(clip, radius=3)  # [-3, -2, -1, 0, +1, +2, +3]
-    out = _tensorrt_inference(input_clips=input_clips, onnx_path=onnx_path, engine_dir=engine_dir, model_name=model_name, clip_w=clip_w, clip_h=clip_h, opt_level=opt_level, tiles=tiles, overlap=overlap, num_streams=num_streams, force_rebuild=force_rebuild)
+    out = _tensorrt_inference(input_clips=input_clips, model_files=model_files, onnx_dir=onnx_dir, engine_dir=engine_dir, strength=strength, clip_w=clip_w, clip_h=clip_h, tiles=tiles, overlap=overlap, num_streams=num_streams, force_rebuild=force_rebuild)
     out = core.std.CopyFrameProps(out, clip)  # copy props to make sure they are not from the shifted -3 clip
-    return exclude_regions(out, clip, exclude=exclude)  # exclude regions from temporalfix
+    return exclude_regions(out, orig_clip, exclude=exclude)  # exclude regions from temporalfix
 
 
 def model(clip, strength=2, tiles=1, backend="tensorrt", num_streams=1, engine_folder=None, exclude=None):
@@ -311,19 +470,18 @@ def model(clip, strength=2, tiles=1, backend="tensorrt", num_streams=1, engine_f
 
     Args:
         clip: Temporally unstable upscaled clip.
-        strength: Suppression strength of temporal inconsistencies in the range `1-3`. Higher means more aggressive. 
+        strength: Suppression strength of temporal inconsistencies in the range `0.0-3.0`. Higher means more aggressive. 
             Higher resolution tends to need higher strength. Too high may oversmooth small movements.
         tiles: A higher amount of tiles will reduce VRAM usage at the cost of speed. 
             This should only be needed on low end hardware. `tiles=1` will use the full frame, which is fastest.
         backend: The backend used to run the model.
-            - `cpu` = CPU mode using PyTorch (slowest).
-            - `cuda` = GPU mode using PyTorch with CUDA support. Requires any Nvidia GPU (faster).
-            - `tensorrt` = GPU mode using vs-mlrt with TensorRT support. Requires an Nvidia RTX GPU (fastest).
-        num_streams: Number of parallel TensorRT streams. For high end GPUs higher can be faster, but requires more VRAM. Only effects the TensorRT backend.
-        engine_folder: Optional path to the TensorRT engine storage location. By default engines are stored in `vs_temporalfix/engines`. Only effects the TensorRT backend.
-        exclude: Optionally exclude scenes with intended temporal inconsistencies, or in case this causes unexpected issues. 
-            Example setting 3 scenes: `exclude="[10 20] [600 900] [2000 2500]"`. 
-            First number in the brackets is the first frame of the scene, the second number is the last frame (inclusive).
+            - `cpu` = CPU mode using PyTorch (very slow).
+            - `cuda` = GPU mode using PyTorch with CUDA support. Requires any Nvidia GPU (fast).
+            - `tensorrt` = GPU mode using vs-mlrt with TensorRT support. Requires an Nvidia RTX GPU (very fast).
+        num_streams: Number of parallel TensorRT streams. For high end GPUs higher can be faster, but requires more VRAM. Only affects the TensorRT backend.
+        engine_folder: Optional path to the TensorRT engine storage location. By default engines are stored in `vs_temporalfix/engines`. Only affects the TensorRT backend.
+        exclude: Optionally exclude scenes with intended temporal inconsistencies. Brackets define excluded frame ranges. 
+            Example for two scenes: `exclude="[10 20] [600 900]"`
     """
     
     if backend in ["cpu", "cuda"]:

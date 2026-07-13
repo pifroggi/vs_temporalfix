@@ -1,23 +1,48 @@
 [build-system]
-requires = ["setuptools>=77.0.3", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
 
 [project]
 name = "vs_temporalfix"
-version = "2.1.0"
+version = "2.2.0"
 description = "Add Temporal Coherence to Single Image AI Upscaling Models in Vapoursynth"
+readme = "README.md"
+requires-python = ">=3.12"
 authors = [{ name = "pifroggi" }]
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 
-dependencies = [
-	"torch",
-    "numpy"
+keywords = [
+	"vapoursynth",
+	"video",
+	"temporal coherence",
+	"temporal consistency",
+	"upscaling",
+	"super resolution",
+	"denoising",
+	"filtering"
 ]
 
-[tool.setuptools.package-data]
-vs_temporalfix = ["models/*.pth", "models/*.onnx"]
+classifiers = [
+	"Programming Language :: Python :: 3",
+	"Topic :: Multimedia :: Video"
+]
+
+dependencies = [
+	"vapoursynth>=74",
+	"vapoursynth-vszip",
+	"vapoursynth-akarin",
+	"vapoursynth-zsmooth",
+	"vapoursynth-mvtools",
+	"vapoursynth-edgemasks",
+	"vapoursynth-fillborders",
+    "vapoursynth-mlrt-trt>=16.0",
+    "tensorrt-cu13>=11.1.0.106",
+    "numpy",
+	"onnx"
+]
 
 [project.urls]
-Home-page = "https://github.com/pifroggi/vs_temporalfix"
+Homepage = "https://github.com/pifroggi/vs_temporalfix"
 Repository = "https://github.com/pifroggi/vs_temporalfix"
+Issues = "https://github.com/pifroggi/vs_temporalfix/issues"
