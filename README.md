@@ -30,8 +30,8 @@ https://github.com/user-attachments/assets/13f05267-cd61-4de9-ad7f-ce8030102465
 ```
 pip install -U vs_temporalfix
 ```  
-* Temporalfix AI Model: To enable the CPU/CUDA backends, install [PyTorch with CUDA](https://pytorch.org/). *(optional)*  
-* Temporalfix Classic: For tr > 6 support, install [mvtools-sf](https://github.com/IFeelBloated/vapoursynth-mvtools-sf) and [FFTW 3.3](http://www.fftw.org/download.html) to your plugin directory. *(optional)*
+* __Temporalfix AI Model:__ To enable the CPU/CUDA backends, install [PyTorch with CUDA](https://pytorch.org/). *(optional)*  
+* __Temporalfix Classic:__ For tr > 6 support, install [mvtools-sf](https://github.com/IFeelBloated/vapoursynth-mvtools-sf) and [FFTW 3.3](http://www.fftw.org/download.html) to your plugin directory. *(optional)*
 <br />
 
 For older vapoursynth versions below R74, follow the manual installation steps [here](https://github.com/pifroggi/vs_temporalfix/wiki/Manual-Installation).
