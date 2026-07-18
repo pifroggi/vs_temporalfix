@@ -28,7 +28,7 @@ https://github.com/user-attachments/assets/13f05267-cd61-4de9-ad7f-ce8030102465
 ## Installation
 
 ```
-pip install -U vs_temporalfix
+pip install -U vs_temporalfix --extra-index-url https://pypi.nvidia.com/
 ```  
 * __Temporalfix AI Model:__ To enable the CPU/CUDA backends, install [PyTorch with CUDA](https://pytorch.org/). *(optional)*  
 * __Temporalfix Classic:__ For tr > 6 support, install [mvtools-sf](https://github.com/IFeelBloated/vapoursynth-mvtools-sf) and [FFTW 3.3](http://www.fftw.org/download.html) to your plugin directory. *(optional)*
@@ -47,7 +47,7 @@ clip = vs_temporalfix.model(clip, strength=2.0, tiles=1, backend="tensorrt", num
 ```
 
 __*`clip`*__  
-Temporally unstable upscaled clip. Must be in RGB format.
+Temporally unstable upscaled clip. Must be in RGBH format.
 
 __*`strength`*__  
 Suppression strength of temporal inconsistencies in the 0.0-3.0 range. Higher means more aggressive.  
