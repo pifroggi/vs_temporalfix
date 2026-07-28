@@ -17,7 +17,7 @@
 
 
 # Add Temporal Coherence to AI Upscales in VapourSynth
-When using SISR models (single image super resolution) on video, they tend to create slightly different results each frame. Temporalfix is a post filter that averages these results over multiple frames, removing temporal inconsistencies like fizzle or wiggly lines. Also known as stabilization, deshimmering, temporal denoising, or temporal fix.
+When using SISR models (single image super resolution) on video, they tend to create slightly different results each frame. TemporalFix is a post filter that averages these results over multiple frames, removing temporal inconsistencies like fizzle or wiggly lines. Also known as stabilization, deshimmering, temporal denoising, or temporal fix.
 
 <br />
 
@@ -33,11 +33,11 @@ pip install -U vs_temporalfix --extra-index-url https://pypi.nvidia.com/
 To enable the CPU/CUDA backends, install [PyTorch with CUDA](https://pytorch.org/get-started/locally/). *(optional)*  
 
 > [!TIP]
-> For older vapoursynth versions below R74, follow the manual installation steps [here](https://github.com/pifroggi/vs_temporalfix/wiki/Manual-Installation).
+> For older VapourSynth versions below R74, follow the manual installation steps [here](https://github.com/pifroggi/vs_temporalfix/wiki/Manual-Installation).
 
 <br />
 
-## Temporalfix AI Model
+## TemporalFix AI Model
 The newest and most capable version of temporalfix. It is easy to use and can run very fast on Nvidia GPUs.
 
 ```python
@@ -77,7 +77,7 @@ Optional path to the TensorRT engine storage location. By default engines are st
 
 <br />
 
-## Temporalfix Classic
+## TemporalFix Classic
 The original CPU based version. It is harder to tune, may miss some areas, and only works well for 2D animation.
 
 ```python
@@ -110,7 +110,7 @@ Shows areas that will not be fixed in pink. This includes areas with high motion
 
 > [!TIP]
 > * Crop any black borders on the input clip! In temporalfix classic they can cause ghosting on bright frames.
-> * If slow, try increasing your cache: `core.max_cache_size = 10000` (not needed on vapoursynth R78 and up)
+> * If slow, try increasing your cache: `core.max_cache_size = 10000` (not needed on VapourSynth R78 and up)
 
 <br />
 
@@ -195,12 +195,12 @@ Model benchmarks were done on a RTX 4090 GPU and Classic benchmarks on a Ryzen 5
 <br />
 
 ## Third-Party Integrations
-Several projects integrated temporalfix to simplify usage without the need for vapoursynth knowledge. Feel free to contact me if you want to be part of this list.
+Several projects integrated TemporalFix to simplify usage without the need for VapourSynth knowledge. Feel free to contact me if you want to be part of this list.
 * __[Vapourkit](https://github.com/Kim2091/vapourkit) (Windows only)__  
-  Video filter and upscaling program with an easy GUI. This is the easiest way to use it. Just click on add filter and add one of the two Temporalfix versions.
+  Video filter and upscaling program with an easy GUI. This is the easiest way to use it. Just click on add filter and add one of the two TemporalFix versions.
 * __[Hybrid](https://www.selur.de/) (Windows and Linux)__  
-  Video filter toolbox with a GUI. Can be a bit overwhelming due to the amount of features and filters, but Temporalfix is one of them.
+  Video filter toolbox with a GUI. Can be a bit overwhelming due to the amount of features and filters, but TemporalFix is one of them.
 * __[VSGAN-tensorrt-docker](https://github.com/styler00dollar/VSGAN-tensorrt-docker) (Windows and Linux)__  
-  Command line AI upscale and interpolation toolbox that comes with both versions of Temporalfix. Rudimentary knowledge of Docker and VapourSynth is recommended, but the readme also explains it.
+  Command line AI upscale and interpolation toolbox that comes with both versions of TemporalFix. Rudimentary knowledge of Docker and VapourSynth is recommended, but the readme also explains it.
 * __[mpv-cHiDeNoise-AI](https://github.com/animeojisan/mpv-cHiDeNoise-AI) (Windows only)__  
-  AI upscaling video player based on mpv, which includes the Temporalfix AI Models and a lighter modified version of Temporalfix Classic for real-time playback. Mainly intended for japanese audience.
+  AI upscaling video player based on mpv, which includes the TemporalFix AI Models and a lighter modified version of TemporalFix Classic for real-time playback. Mainly intended for japanese audience.
