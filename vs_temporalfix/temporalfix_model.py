@@ -15,7 +15,7 @@ from .utils import basic_expr, gen_shifts, get_tiles, get_spans, exclude_regions
 core = vs.core
 
 
-def _pytorch(clip, strength=2, tiles=1, device="cuda", exclude=None):
+def _pytorch(clip, strength=2.0, exclude=None, tiles=1, device="cuda"):
     import threading
     import numpy as np
     from collections import OrderedDict
@@ -125,7 +125,17 @@ def _pytorch(clip, strength=2, tiles=1, device="cuda", exclude=None):
                 elif len(self.store) >= self.capacity:
                     self.store.popitem(last=False)
                 self.store[key] = value
-
+    
+    def _empty_cuda_cache():
+        nonlocal model, FRAME_CACHE
+        FRAME_CACHE = None
+        model = None
+        try:
+            if torch.cuda.is_initialized():
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
+    
     def _frame_to_tensor(frame, frame_idx, tile_idx=None, x0=None, x1=None, y0=None, y1=None):
         # get from cache if possible
         cache_key = frame_idx if tile_idx is None else (frame_idx, tile_idx)
@@ -187,6 +197,10 @@ def _pytorch(clip, strength=2, tiles=1, device="cuda", exclude=None):
     input_clips = gen_shifts(clip, radius=3)          # [-3, -2, -1, 0, +1, +2, +3]
     FRAME_CACHE = LRUFrameCache(capacity=10 * tiles)  # cache converted frame tensors
     out = core.std.ModifyFrame(clip, clips=input_clips, selector=_pytorch_inference)
+
+    # free cache on destroy so reloading previewers doesn't cause issues 
+    if use_cuda:
+        vs.register_on_destroy(_empty_cuda_cache)
 
     # convert back and return
     if out.format.id != orig_format:
@@ -296,9 +310,16 @@ def _build_engine_python(onnx_path, engine_path, engine_w, engine_h, trt_package
         def __init__(self):
             trt.ILogger.__init__(self)
             self.messages = []
+            self.fatal    = False
         def log(self, severity, msg):
             if severity <= trt.Logger.WARNING:
                 self.messages.append((severity, msg))
+                if self.fatal:
+                    logging.critical(f"  [{severity}] {msg}")
+                elif severity == trt.Logger.INTERNAL_ERROR:  # print fatal errors immediately because python may not get control back
+                    self.fatal = True
+                    log = "\n".join(f"  [{log_severity}] {log_msg}" for log_severity, log_msg in self.messages)
+                    logging.critical(f"vs_temporalfix: Internal Error: TensorRT failed while building the TensorRT engine.\n=== TensorRT log ===\n{log}")
         def get_log(self):
             return "\n".join(f"  [{severity}] {msg}" for severity, msg in self.messages)
 
@@ -421,7 +442,7 @@ def _tensorrt_inference(input_clips, model_files, onnx_dir, engine_dir, strength
     return out
 
 
-def _tensorrt(clip, strength=2, tiles=1, num_streams=1, engine_folder=None, exclude=None):
+def _tensorrt(clip, strength=2.0, exclude=None, tiles=1, num_streams=1, engine_folder=None):
     
     # checks
     if not isinstance(clip, vs.VideoNode):
@@ -465,27 +486,27 @@ def _tensorrt(clip, strength=2, tiles=1, num_streams=1, engine_folder=None, excl
     return exclude_regions(out, orig_clip, exclude=exclude)  # exclude regions from temporalfix
 
 
-def model(clip, strength=2, tiles=1, backend="tensorrt", num_streams=1, engine_folder=None, exclude=None):
+def model(clip, strength=2.0, exclude=None, backend="tensorrt", tiles=1, num_streams=1, engine_folder=None):
     """Add temporal coherence to single image AI upscaling models. Also known as temporal consistency, line wiggle fix, stabilization, deshimmering.
 
     Args:
         clip: Temporally unstable upscaled clip.
-        strength: Suppression strength of temporal inconsistencies in the range `0.0-3.0`. Higher means more aggressive. 
+        strength: Suppression strength of temporal inconsistencies in the range `0.0-3.0`. Higher means more aggressive.
             Higher resolution tends to need higher strength. Too high may oversmooth small movements.
-        tiles: A higher amount of tiles will reduce VRAM usage at the cost of speed. 
-            This should only be needed on low end hardware. `tiles=1` will use the full frame, which is fastest.
+        exclude: Optionally exclude scenes with intended temporal inconsistencies. Brackets define excluded frame ranges.
+            Example for two scenes: `exclude="[10 20] [600 900]"`
         backend: The backend used to run the model.
             - `cpu` = CPU mode using PyTorch (very slow).
             - `cuda` = GPU mode using PyTorch with CUDA support. Requires any Nvidia GPU (fast).
             - `tensorrt` = GPU mode using vs-mlrt with TensorRT support. Requires an Nvidia RTX GPU (very fast).
+        tiles: A higher amount of tiles will reduce VRAM usage at the cost of speed.
+            This should only be needed on low end hardware. `tiles=1` will use the full frame, which is fastest.
         num_streams: Number of parallel TensorRT streams. For high end GPUs higher can be faster, but requires more VRAM. Only affects the TensorRT backend.
         engine_folder: Optional path to the TensorRT engine storage location. By default engines are stored in `vs_temporalfix/engines`. Only affects the TensorRT backend.
-        exclude: Optionally exclude scenes with intended temporal inconsistencies. Brackets define excluded frame ranges. 
-            Example for two scenes: `exclude="[10 20] [600 900]"`
     """
     
     if backend in ["cpu", "cuda"]:
-        return _pytorch(clip, strength=strength, tiles=tiles, device=backend, exclude=exclude)
+        return _pytorch(clip, strength=strength, exclude=exclude, tiles=tiles, device=backend)
     if backend in ["tensorrt", "trt"]:
-        return _tensorrt(clip, strength=strength, tiles=tiles, num_streams=num_streams, engine_folder=engine_folder, exclude=exclude)
+        return _tensorrt(clip, strength=strength, exclude=exclude, tiles=tiles, num_streams=num_streams, engine_folder=engine_folder)
     raise ValueError("vs_temporalfix: Backend must be 'cpu', 'cuda', or 'tensorrt'.")
