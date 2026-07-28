@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vs_temporalfix"
-version = "2.2.0"
-description = "Add Temporal Coherence to Single Image AI Upscaling Models in Vapoursynth"
+version = "2.3.0"
+description = "Add Temporal Coherence to Single Image AI Upscales in VapourSynth."
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [{ name = "pifroggi" }]
@@ -17,9 +17,11 @@ keywords = [
 	"video",
 	"temporal coherence",
 	"temporal consistency",
+	"stabilization",
+	"deshimmer",
+	"denoising",
 	"upscaling",
 	"super resolution",
-	"denoising",
 	"filtering"
 ]
 
@@ -33,9 +35,8 @@ dependencies = [
 	"vapoursynth-vszip",
 	"vapoursynth-akarin",
 	"vapoursynth-zsmooth",
-	"vapoursynth-mvtools",
 	"vapoursynth-edgemasks",
-	"vapoursynth-fillborders",
+	"vapoursynth-mvutensils>=5",
     "vapoursynth-mlrt-trt>=16.0",
     "tensorrt-cu13>=11.1.0.106",
     "numpy",

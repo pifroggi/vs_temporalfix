@@ -30,11 +30,10 @@ https://github.com/user-attachments/assets/13f05267-cd61-4de9-ad7f-ce8030102465
 ```
 pip install -U vs_temporalfix --extra-index-url https://pypi.nvidia.com/
 ```  
-* __Temporalfix AI Model:__ To enable the CPU/CUDA backends, install [PyTorch with CUDA](https://pytorch.org/). *(optional)*  
-* __Temporalfix Classic:__ For tr > 6 support, install [mvtools-sf](https://github.com/IFeelBloated/vapoursynth-mvtools-sf) and [FFTW 3.3](http://www.fftw.org/download.html) to your plugin directory. *(optional)*
-<br />
+To enable the CPU/CUDA backends, install [PyTorch with CUDA](https://pytorch.org/get-started/locally/). *(optional)*  
 
-For older vapoursynth versions below R74, follow the manual installation steps [here](https://github.com/pifroggi/vs_temporalfix/wiki/Manual-Installation).
+> [!TIP]
+> For older vapoursynth versions below R74, follow the manual installation steps [here](https://github.com/pifroggi/vs_temporalfix/wiki/Manual-Installation).
 
 <br />
 
@@ -43,7 +42,7 @@ The newest and most capable version of temporalfix. It is easy to use and can ru
 
 ```python
 import vs_temporalfix
-clip = vs_temporalfix.model(clip, strength=2.0, tiles=1, backend="tensorrt", num_streams=1, engine_folder=None, exclude=None)
+clip = vs_temporalfix.model(clip, strength=2.0, exclude=None, backend="tensorrt", tiles=1, num_streams=1, engine_folder=None)
 ```
 
 __*`clip`*__  
@@ -53,9 +52,9 @@ __*`strength`*__
 Suppression strength of temporal inconsistencies in the 0.0-3.0 range. Higher means more aggressive.  
 Higher resolution tends to need higher strength. Too high may oversmooth small movements.
 
-__*`tiles`* (optional)__  
-A higher amount of tiles will reduce VRAM usage at the cost of speed.  
-This should only be needed on low end hardware. Default tiles=1 uses the full frame, which is fastest.
+__*`exclude`* (optional)__  
+Optionally exclude scenes with intended temporal inconsistencies.  
+Brackets define excluded frame ranges. Example for two scenes: `exclude="[10 20] [600 900]"`
 
 __*`backend`* (optional)__  
 The backend used to run the model:
@@ -63,15 +62,15 @@ The backend used to run the model:
 * `cuda` GPU mode using PyTorch with CUDA support. Requires any Nvidia GPU *(fast)*.
 * `tensorrt` GPU mode using vs-mlrt with TensorRT support. Requires an Nvidia RTX GPU. On the first run, this mode will automatically build an engine, which may take a few minutes. Changing strength or input dimensions will trigger rebuilding, but previously build engines are stored *(very fast)*.
 
+__*`tiles`* (optional)__  
+A higher amount of tiles will reduce VRAM usage at the cost of speed.  
+This should only be needed on low end hardware. Default tiles=1 uses the full frame, which is fastest.
+
 __*`num_streams`* (optional)__  
-Number of parallel TensorRT streams. For high end GPUs higher can be faster, but requires more VRAM. Only effects the TensorRT backend.
+Number of parallel TensorRT streams. For high end GPUs higher can be faster, but requires more VRAM. Only affects the TensorRT backend.
 
 __*`engine_folder`* (optional)__  
-Optional path to the TensorRT engine storage location. By default engines are stored in `vs_temporalfix/engines`. Only effects the TensorRT backend.
-
-__*`exclude`* (optional)__  
-Optionally exclude scenes with intended temporal inconsistencies.  
-Brackets define excluded frame ranges. Example for two scenes: `exclude="[10 20] [600 900]"`
+Optional path to the TensorRT engine storage location. By default engines are stored in `vs_temporalfix/engines`. Only affects the TensorRT backend.
 
 > [!TIP]
 > Feedback is much appreciated. If the model does not work well for you or causes issues, feel free to open an issue, or contact me via Discord (pifroggi or tepete) and provide a sample. That will help improve it over time.
@@ -79,10 +78,9 @@ Brackets define excluded frame ranges. Example for two scenes: `exclude="[10 20]
 <br />
 
 ## Temporalfix Classic
-The original CPU based version. It is slower, harder to use, may miss some areas, and only works well for 2D animation.
+The original CPU based version. It is harder to tune, may miss some areas, and only works well for 2D animation.
 
 ```python
-core.max_cache_size = 15000  # Add near top of vapoursynth script to increase frame cache, else temporalfix will be slow. High tr and resolution, or large filter scripts may need more.
 import vs_temporalfix
 clip = vs_temporalfix.classic(clip, strength=500, tr=6, denoise=False, exclude=None, debug=False)
 ```
@@ -112,7 +110,7 @@ Shows areas that will not be fixed in pink. This includes areas with high motion
 
 > [!TIP]
 > * Crop any black borders on the input clip! In temporalfix classic they can cause ghosting on bright frames.
-> * There is a big drop in performance for tr > 6, due to switching from mvtools to mvtools-sf, which is slower.
+> * If slow, try increasing your cache: `core.max_cache_size = 10000` (not needed on vapoursynth R78 and up)
 
 <br />
 
@@ -125,27 +123,27 @@ Model benchmarks were done on a RTX 4090 GPU and Classic benchmarks on a Ryzen 5
 
 <table>
   <thead>
-    <tr>
+    <tr align="center">
       <th colspan="3">AI Model</th>
     </tr>
-    <tr>
+    <tr align="center">
       <th>Resolution</th>
       <th>TensorRT</th>
       <th>CUDA</th>
     </tr>
   </thead>
   <tbody>
-    <tr>
+    <tr align="center">
       <td>720x480</td>
       <td>~320 fps</td>
       <td>~70 fps</td>
     </tr>
-    <tr>
+    <tr align="center">
       <td>1440x1080</td>
       <td>~80 fps</td>
       <td>~32 fps</td>
     </tr>
-    <tr>
+    <tr align="center">
       <td>2880x2160</td>
       <td>~20 fps</td>
       <td>~8 fps</td>
@@ -158,10 +156,10 @@ Model benchmarks were done on a RTX 4090 GPU and Classic benchmarks on a Ryzen 5
 
 <table>
   <thead>
-    <tr>
+    <tr align="center">
       <th colspan="4">Classic</th>
     </tr>
-    <tr>
+    <tr align="center">
       <th>Resolution</th>
       <th>YUV444</th>
       <th>YUV420</th>
@@ -169,23 +167,23 @@ Model benchmarks were done on a RTX 4090 GPU and Classic benchmarks on a Ryzen 5
     </tr>
   </thead>
   <tbody>
-    <tr>
+    <tr align="center">
       <td>720x480</td>
-      <td>~45 fps</td>
-      <td>~60 fps</td>
-      <td>~85 fps</td>
+      <td>~70 fps</td>
+      <td>~90 fps</td>
+      <td>~120 fps</td>
     </tr>
-    <tr>
+    <tr align="center">
       <td>1440x1080</td>
-      <td>~10 fps</td>
-      <td>~14 fps</td>
+      <td>~15 fps</td>
       <td>~20 fps</td>
+      <td>~25 fps</td>
     </tr>
-    <tr>
+    <tr align="center">
       <td>2880x2160</td>
-      <td>~5.5 fps</td>
-      <td>~8 fps</td>
+      <td>~7.5 fps</td>
       <td>~11 fps</td>
+      <td>~14 fps</td>
     </tr>
   </tbody>
 </table>
