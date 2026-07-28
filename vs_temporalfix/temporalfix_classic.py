@@ -143,7 +143,6 @@ def classic(clip, strength=500, tr=6, denoise=False, exclude=None, debug=False):
     searchparam = 1
     thscd1      = 1000
     thscd2      = 100.0
-    extra_pad   = 16
     dark_str    = 2.5
     dark_amp    = 0.2
     
