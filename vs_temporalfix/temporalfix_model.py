@@ -4,18 +4,19 @@
 
 import os
 import re
+import sys
 import math
 import shutil
 import logging
 import subprocess
 import vapoursynth as vs
 from pathlib import Path
-from .utils import basic_expr, gen_shifts, get_tiles, get_spans, exclude_regions, interpolate_onnx
+from .utils import basic_expr, gen_shifts, get_tiles, get_spans, exclude_regions, interpolate_onnx, split_gridsample
 
 core = vs.core
 
 
-def _pytorch(clip, strength=2.0, exclude=None, tiles=1, device="cuda"):
+def _pytorch(clip, strength=2.0, exclude=None, device="cuda", tiles=1, gpu_id=0):
     import threading
     import numpy as np
     from collections import OrderedDict
@@ -24,15 +25,15 @@ def _pytorch(clip, strength=2.0, exclude=None, tiles=1, device="cuda"):
         try:
             import torch
         except ImportError:
-            raise RuntimeError("vs_temporalfix: The CPU/CUDA backends require PyTorch. Please install it from https://pytorch.org/ or choose a different backend. For the CUDA backend specifically, install a version of PyTorch with CUDA support.") from None
+            raise RuntimeError("vs_temporalfix: CPU Backend not installed. Please install PyTorch from https://pytorch.org/ or choose a different backend.") from None
 
     if device == "cuda":
         try:
             import torch
         except ImportError:
-            raise RuntimeError("vs_temporalfix: The CUDA backend requires PyTorch with CUDA. Please install a version of PyTorch with CUDA support from https://pytorch.org/ or choose a different backend.") from None
+            raise RuntimeError("vs_temporalfix: CUDA backend not installed. Please install PyTorch with CUDA from https://pytorch.org/ or choose a different backend.") from None
         if not torch.cuda.is_available():
-            raise RuntimeError("vs_temporalfix: The CUDA backend requires PyTorch with CUDA, but the installed version has no CUDA support. Please upgrade to a version with CUDA support from https://pytorch.org/ or choose a different backend.")
+            raise RuntimeError("vs_temporalfix: The CUDA backend requires PyTorch with CUDA, but the installed version has no CUDA support. Please upgrade to a version with CUDA from https://pytorch.org/ or choose a different backend.")
 
     from .models.temporalfix_arch import temporalfix_arch
     os.environ["CUDA_MODULE_LOADING"] = "LAZY"
@@ -42,12 +43,20 @@ def _pytorch(clip, strength=2.0, exclude=None, tiles=1, device="cuda"):
         raise TypeError("vs_temporalfix: Clip must be a vapoursynth clip.")
     if clip.format.id == vs.PresetVideoFormat.NONE or clip.width == 0 or clip.height == 0:
         raise TypeError("vs_temporalfix: Clip must have constant format and dimensions.")
+    if clip.width % 2 != 0 or clip.height % 2 != 0:
+        raise ValueError("vs_temporalfix: Clip dimensions must be even.")
     if clip.num_frames < 4:
         raise ValueError("vs_temporalfix: Clip must be at least 4 frames long.")
     if clip.format.color_family != vs.RGB:
         raise ValueError("vs_temporalfix: Clip must be in RGB format.")
     if strength < 0 or strength > 3:
         raise ValueError("vs_temporalfix: Strength must be in the 0.0-3.0 range.")
+    if device == "cuda" and not isinstance(gpu_id, int) or isinstance(gpu_id, bool):
+        raise TypeError("vs_temporalfix: GPU ID must be an integer.")
+    if device == "cuda" and gpu_id < 0:
+        raise ValueError("vs_temporalfix: GPU ID can not be negative.")
+    if device == "cuda" and gpu_id >= torch.cuda.device_count():
+        raise ValueError(f"vs_temporalfix: No GPU with ID {gpu_id} present.")
 
     orig_clip   = clip
     clip_w      = clip.width
@@ -55,7 +64,7 @@ def _pytorch(clip, strength=2.0, exclude=None, tiles=1, device="cuda"):
     orig_format = clip.format.id
     not_tiled   = tiles == 1
     overlap     = min(64, int(64 * ((clip_w * clip_h) / (1920 * 1080)) ** 0.5))  # overlap gets smaller for smaller inputs
-    device      = torch.device(device)
+    device      = torch.device("cuda", gpu_id) if device == "cuda" else torch.device(device)
     use_cuda    = device.type == "cuda"
     fp16        = use_cuda and torch.cuda.get_device_capability(device=device)[0] >= 7
     req_format  = vs.RGBH if fp16 else vs.RGBS
@@ -132,7 +141,8 @@ def _pytorch(clip, strength=2.0, exclude=None, tiles=1, device="cuda"):
         model = None
         try:
             if torch.cuda.is_initialized():
-                torch.cuda.empty_cache()
+                with torch.cuda.device(device):
+                    torch.cuda.empty_cache()
         except Exception:
             pass
     
@@ -266,11 +276,12 @@ def _get_builder(plugin_path, trt_version, cuda_major):
     raise FileNotFoundError(f"vs_temporalfix: No compatible TensorRT engine builder found. Please install the python package 'tensorrt' or install trtexec. The required TensorRT version is {'.'.join(map(str, trt_version))}. The required CUDA version is {cuda_major}.\n{errors}")
 
 
-def _build_engine_trtexec(onnx_path, engine_path, engine_w, engine_h, trt_version, trtexec_path):
+def _build_engine_trtexec(onnx_path, engine_path, engine_w, engine_h, gpu_id, trt_version, trtexec_path):
     # build engine using trtexec, supports trt 10 and 11
 
     # settings
     opt_shapes = f"input:1x21x{engine_h}x{engine_w}"
+    min_shapes = f"input:1x21x{engine_h}x{engine_w - 8}"  # avoid large engine sizes due to saving constants by making one dimension slightly dynamic
     io_formats = f"fp16:chw" if trt_version[0] < 11 else "chw"
     cmd = [
         str(trtexec_path),
@@ -282,7 +293,10 @@ def _build_engine_trtexec(onnx_path, engine_path, engine_w, engine_h, trt_versio
         f"--outputIOFormats={io_formats}",
         f"--onnx={onnx_path}",
         f"--saveEngine={engine_path}",
+        f"--minShapes={min_shapes}",
         f"--optShapes={opt_shapes}",
+        f"--maxShapes={opt_shapes}",
+        f"--device={gpu_id}",
     ]
 
     # build
@@ -301,8 +315,9 @@ def _build_engine_trtexec(onnx_path, engine_path, engine_w, engine_h, trt_versio
         raise RuntimeError(msg) from e
 
 
-def _build_engine_python(onnx_path, engine_path, engine_w, engine_h, trt_package):
+def _build_engine_python(onnx_path, engine_path, engine_w, engine_h, gpu_id, trt_package):
     # build engine using tensorrt python bindings, supports only trt 11
+    from cuda.core import Device
     trt = trt_package
 
     # custom logger for errors
@@ -324,26 +339,33 @@ def _build_engine_python(onnx_path, engine_path, engine_w, engine_h, trt_package
             return "\n".join(f"  [{severity}] {msg}" for severity, msg in self.messages)
 
     # initialize trt and load model
-    logger  = _TrtLogger()
-    builder = trt.Builder(logger)
-    network = builder.create_network()
-    config  = builder.create_builder_config()
-    parser  = trt.OnnxParser(network, logger)
-    if not parser.parse_from_file(str(onnx_path)):
-        errors = "\n".join(f"  {parser.get_error(i)}" for i in range(parser.num_errors))
-        raise RuntimeError(f"vs_temporalfix: Internal Error: TensorRT failed while parsing the ONNX model.\n{errors}")
-    
-    # settings
-    opt_shapes = (1, 21, engine_h, engine_w)                                                                          # optShapes
-    network.get_input(0).allowed_formats = network.get_output(0).allowed_formats = 1 << int(trt.TensorFormat.LINEAR)  # IOFormats:chw
-    config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 4096 << 20)                                            # workspace:4096
-    config.builder_optimization_level = 3                                                                             # builderOptimizationLevel=3
+    cur_id = Device().device_id
+    try:
+        Device(gpu_id).set_current()
+        logger  = _TrtLogger()
+        builder = trt.Builder(logger)
+        network = builder.create_network()
+        config  = builder.create_builder_config()
+        parser  = trt.OnnxParser(network, logger)
+        if not parser.parse_from_file(str(onnx_path)):
+            errors = "\n".join(f"  {parser.get_error(i)}" for i in range(parser.num_errors))
+            raise RuntimeError(f"vs_temporalfix: Internal Error: TensorRT failed while parsing the ONNX model.\n{errors}")
+        
+        # settings
+        opt_shapes = (1, 21, engine_h, engine_w)                                                                          # optShapes
+        min_shapes = (1, 21, engine_h, engine_w - 8)                                                                      # minShapes
+        network.get_input(0).allowed_formats = network.get_output(0).allowed_formats = 1 << int(trt.TensorFormat.LINEAR)  # IOFormats:chw
+        config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 4096 << 20)                                            # workspace:4096
+        config.builder_optimization_level = 3                                                                             # builderOptimizationLevel=3
 
-    # build
-    profile = builder.create_optimization_profile()
-    profile.set_shape(network.get_input(0).name, opt_shapes, opt_shapes, opt_shapes)
-    config.add_optimization_profile(profile)
-    engine  = builder.build_serialized_network(network, config)
+        # build
+        profile = builder.create_optimization_profile()
+        profile.set_shape(network.get_input(0).name, min_shapes, opt_shapes, opt_shapes)
+        config.add_optimization_profile(profile)
+        engine  = builder.build_serialized_network(network, config)
+    finally:
+        Device(cur_id).set_current()
+    
     if engine is None:
         log = logger.get_log()
         msg = "vs_temporalfix: Internal Error: TensorRT failed while building the TensorRT engine."
@@ -356,12 +378,12 @@ def _build_engine_python(onnx_path, engine_path, engine_w, engine_h, trt_package
         f.write(engine)
 
 
-def _get_engine(model_files, onnx_dir, engine_dir, strength, engine_w, engine_h, force_rebuild=False) -> str:
+def _get_engine(model_files, onnx_dir, engine_dir, strength, engine_w, engine_h, gpu_id, force_rebuild=False) -> str:
     # check plugin version
     try:
         info = core.trt.Version()
     except Exception as e:
-        raise RuntimeError("vs_temporalfix: Please install a version of vs-mlrt with TensorRT support or choose a different backend.") from e
+        raise RuntimeError("vs_temporalfix: TensorRT backend not installed. Please install the TensorRT dependencies with:\n'pip install -U vs_temporalfix[tensorrt] --extra-index-url https://pypi.nvidia.com/'\nOr choose a different backend.") from e
     
     # select model
     strength_lower = math.floor(strength)
@@ -372,7 +394,7 @@ def _get_engine(model_files, onnx_dir, engine_dir, strength, engine_w, engine_h,
         model_file = model_files[strength_lower]
         model_name = os.path.splitext(model_file)[0].split("_op")[0]
         onnx_path  = os.path.join(onnx_dir, model_file)
-    else:                                 # else load both and interpolate linearly
+    else:                                 # else load both and interpolate
         model_file_lower = model_files[strength_lower]
         model_file_upper = model_files[strength_upper]
         name_lower = os.path.splitext(model_file_lower)[0].split("temporalfix_")[1].split("_op")[0]
@@ -383,7 +405,7 @@ def _get_engine(model_files, onnx_dir, engine_dir, strength, engine_w, engine_h,
     
     # get path to tensorrt engine
     os.makedirs(engine_dir, exist_ok=True)  # create engine folder if needed
-    engine_name  = f"{model_name}_h{engine_h}_w{engine_w}_fp16.engine"
+    engine_name  = f"{model_name}_h{engine_h}_w{engine_w}_fp16_gpu{gpu_id}.engine"
     engine_path  = os.path.join(engine_dir, engine_name)
     temp_dir     = None
     
@@ -410,9 +432,9 @@ def _get_engine(model_files, onnx_dir, engine_dir, strength, engine_w, engine_h,
     try:
         builder_info = _get_builder(plugin_path=plugin_path, trt_version=trt_version, cuda_major=cuda_major)
         if builder_info[0] == "python":
-            _build_engine_python(onnx_path=onnx_path, engine_path=engine_path, engine_w=engine_w, engine_h=engine_h, trt_package=builder_info[1])
+            _build_engine_python(onnx_path=onnx_path, engine_path=engine_path, engine_w=engine_w, engine_h=engine_h, gpu_id=gpu_id, trt_package=builder_info[1])
         elif builder_info[0] == "trtexec":
-            _build_engine_trtexec(onnx_path=onnx_path, engine_path=engine_path, engine_w=engine_w, engine_h=engine_h, trt_version=trt_version, trtexec_path=builder_info[1])
+            _build_engine_trtexec(onnx_path=onnx_path, engine_path=engine_path, engine_w=engine_w, engine_h=engine_h, gpu_id=gpu_id, trt_version=trt_version, trtexec_path=builder_info[1])
         else:
             raise RuntimeError(f"vs_temporalfix: Internal Error: Unknown TensorRT engine builder: {builder_info[0]}")
         logging.warning("vs_temporalfix: Engine building complete.")
@@ -422,10 +444,10 @@ def _get_engine(model_files, onnx_dir, engine_dir, strength, engine_w, engine_h,
             temp_dir.cleanup()
 
 
-def _tensorrt_inference(input_clips, model_files, onnx_dir, engine_dir, strength, clip_w, clip_h, tiles=1, overlap=64, num_streams=1, force_rebuild=False):
+def _tensorrt_inference(input_clips, model_files, onnx_dir, engine_dir, strength, clip_w, clip_h, tiles, overlap, num_streams, gpu_id, force_rebuild=False):
     tile_w, tile_h, _, _ = get_tiles(clip_w=clip_w, clip_h=clip_h, tiles=tiles, overlap=overlap)
-    engine_path = _get_engine(model_files=model_files, onnx_dir=onnx_dir, engine_dir=engine_dir, strength=strength, engine_w=tile_w, engine_h=tile_h, force_rebuild=force_rebuild)
-    model_args  = dict(engine_path=engine_path, num_streams=num_streams, **(dict(tilesize=(tile_w, tile_h), overlap=(overlap, overlap)) if tiles > 1 else {}))
+    engine_path = _get_engine(model_files=model_files, onnx_dir=onnx_dir, engine_dir=engine_dir, strength=strength, engine_w=tile_w, engine_h=tile_h, gpu_id=gpu_id, force_rebuild=force_rebuild)
+    model_args  = dict(engine_path=engine_path, num_streams=num_streams, device_id=gpu_id, **(dict(tilesize=(tile_w, tile_h), overlap=(overlap, overlap)) if tiles > 1 else {}))
 
     # try inference, rebuild engine if it fails
     try:
@@ -435,28 +457,75 @@ def _tensorrt_inference(input_clips, model_files, onnx_dir, engine_dir, strength
         serialization_keywords = ("serialize", "serialization", "deserialize", "deserialization")
         if any(k in err_msg for k in serialization_keywords) and not force_rebuild:
             logging.warning("vs_temporalfix: Engine loading failed. This may be due to a TensorRT or driver update. Rebuilding...")
-            model_args["engine_path"] = _get_engine(model_files=model_files, onnx_dir=onnx_dir, engine_dir=engine_dir, strength=strength, engine_w=tile_w, engine_h=tile_h, force_rebuild=True)
+            model_args["engine_path"] = _get_engine(model_files=model_files, onnx_dir=onnx_dir, engine_dir=engine_dir, strength=strength, engine_w=tile_w, engine_h=tile_h, gpu_id=gpu_id, force_rebuild=True)
             out = core.trt.Model(input_clips, **model_args)
         else:
             raise
     return out
 
 
-def _tensorrt(clip, strength=2.0, exclude=None, tiles=1, num_streams=1, engine_folder=None):
+def _directml_inference(input_clips, model_files, onnx_dir, strength, clip_w, clip_h, tiles, overlap, num_streams, gpu_id):
+    import onnx
+
+    # directml gridsample loses exact flattened grid addressing once the rgb grid grows past the exact integer range of fp32
+    tile_w, tile_h, _, _ = get_tiles(clip_w=clip_w, clip_h=clip_h, tiles=tiles, overlap=overlap)
+    max_pixels = 16777216  # 2^24
+    cur_pixels = 6 * tile_h * tile_w * 2  # *6 for batch 6, *2 for 2 flow planes
+    split      = cur_pixels > max_pixels
+
+    # make sure each grid still fit the address range
+    split_pixels = tile_h * tile_w * 2
+    if split and split_pixels > max_pixels:
+        raise ValueError("vs_temporalfix: The input dimensions are too large for the DirectML backend. Increase tiles or choose a different backend.")
+
+    # select model
+    strength_lower = math.floor(strength)
+    strength_upper = math.ceil(strength)
+    if strength_lower == strength_upper:  # if both the same, load model directly
+        onnx_model = onnx.load(os.path.join(onnx_dir, model_files[strength_lower]))
+    else:                                 # else load both and interpolate
+        weighting  = strength - strength_lower
+        onnx_path  = [os.path.join(onnx_dir, model_files[strength_lower]), os.path.join(onnx_dir, model_files[strength_upper])]
+        onnx_model = interpolate_onnx(onnx_path_lower=onnx_path[0], onnx_path_upper=onnx_path[1], weighting=weighting)
+
+    # split gridsample if needed
+    if split:
+        onnx_model = split_gridsample(onnx_model)
+
+    # inference
+    out = core.ort.Model(input_clips, network_path=onnx_model.SerializeToString(), provider="DML", path_is_serialization=True, device_id=gpu_id, num_streams=num_streams, **(dict(tilesize=(tile_w, tile_h), overlap=(overlap, overlap)) if tiles > 1 else {}))
+
+    # pre-initialize directml to make multi stream inference faster
+    if num_streams > 1:
+        warm_frame = out.get_frame(0)
+        del warm_frame
+
+    return out
+
+
+def _vsmlrt(clip, strength=2.0, exclude=None, backend="tensorrt", tiles=1, num_streams=1, gpu_id=0, engine_folder=None):
     
     # checks
     if not isinstance(clip, vs.VideoNode):
         raise TypeError("vs_temporalfix: Clip must be a vapoursynth clip.")
     if clip.format.id  == vs.PresetVideoFormat.NONE or clip.width  == 0 or clip.height  == 0:
         raise TypeError("vs_temporalfix: Clip must have constant format and dimensions.")
+    if clip.width % 2 != 0 or clip.height % 2 != 0:
+        raise ValueError("vs_temporalfix: Clip dimensions must be even.")
     if clip.num_frames < 4:
         raise ValueError("vs_temporalfix: Clip must be at least 4 frames long.")
     if clip.format.id not in [vs.RGBH]:
-        raise ValueError("vs_temporalfix: Clip must be in RGBH format for the TensorRT backend.")
+        raise ValueError("vs_temporalfix: Clip must be in RGBH format for the DirectML or TensorRT backends.")
     if strength < 0 or strength > 3:
         raise ValueError("vs_temporalfix: Strength must be in the 0.0-3.0 range.")
     if num_streams < 1:
-        raise ValueError("vs_temporalfix: Number of parallel TensorRT streams (num_streams) must be at least 1.")
+        raise ValueError("vs_temporalfix: Number of parallel GPU streams (num_streams) must be at least 1.")
+    if not isinstance(gpu_id, int) or isinstance(gpu_id, bool):
+        raise TypeError("vs_temporalfix: GPU ID must be an integer.")
+    if gpu_id < 0:
+        raise ValueError("vs_temporalfix: GPU ID can not be negative.")
+    if backend in ["directml", "dml"] and sys.platform != "win32":
+        raise RuntimeError("vs_temporalfix: The DirectML backend is only available on Windows.")
     
     # select model
     orig_clip     = clip
@@ -478,15 +547,22 @@ def _tensorrt(clip, strength=2.0, exclude=None, tiles=1, num_streams=1, engine_f
     if strength == 0:
         return clip
 
-    # shift and inference
-    clip = basic_expr(clip, expr=["x 0 max 1 min"])  # clamp
+    # clamp and shift
+    clip = basic_expr(clip, expr=["x 0 max 1 min"])
     input_clips = gen_shifts(clip, radius=3)  # [-3, -2, -1, 0, +1, +2, +3]
-    out = _tensorrt_inference(input_clips=input_clips, model_files=model_files, onnx_dir=onnx_dir, engine_dir=engine_dir, strength=strength, clip_w=clip_w, clip_h=clip_h, tiles=tiles, overlap=overlap, num_streams=num_streams, force_rebuild=force_rebuild)
+    
+    # inference
+    if backend in ["tensorrt", "trt"]:
+        out = _tensorrt_inference(input_clips=input_clips, model_files=model_files, onnx_dir=onnx_dir, strength=strength, clip_w=clip_w, clip_h=clip_h, tiles=tiles, overlap=overlap, num_streams=num_streams, gpu_id=gpu_id, engine_dir=engine_dir, force_rebuild=force_rebuild)
+    if backend in ["directml", "dml"]:
+        out = _directml_inference(input_clips=input_clips, model_files=model_files, onnx_dir=onnx_dir, strength=strength, clip_w=clip_w, clip_h=clip_h, tiles=tiles, overlap=overlap, num_streams=num_streams, gpu_id=gpu_id)
+
+    # exclude and return
     out = core.std.CopyFrameProps(out, clip)  # copy props to make sure they are not from the shifted -3 clip
-    return exclude_regions(out, orig_clip, exclude=exclude)  # exclude regions from temporalfix
+    return exclude_regions(out, orig_clip, exclude=exclude)
 
 
-def model(clip, strength=2.0, exclude=None, backend="tensorrt", tiles=1, num_streams=1, engine_folder=None):
+def model(clip, strength=2.0, exclude=None, backend="tensorrt", tiles=1, num_streams=1, gpu_id=0, engine_folder=None):
     """Add temporal coherence to single image AI upscaling models. Also known as temporal consistency, line wiggle fix, stabilization, deshimmering.
 
     Args:
@@ -498,15 +574,21 @@ def model(clip, strength=2.0, exclude=None, backend="tensorrt", tiles=1, num_str
         backend: The backend used to run the model.
             - `cpu` = CPU mode using PyTorch (very slow).
             - `cuda` = GPU mode using PyTorch with CUDA support. Requires any Nvidia GPU (fast).
+            - `directml` = GPU mode using vs-mlrt with DirectML support. Works on most GPUs, but Windows only (faster).
             - `tensorrt` = GPU mode using vs-mlrt with TensorRT support. Requires an Nvidia RTX GPU (very fast).
         tiles: A higher amount of tiles will reduce VRAM usage at the cost of speed.
             This should only be needed on low end hardware. `tiles=1` will use the full frame, which is fastest.
-        num_streams: Number of parallel TensorRT streams. For high end GPUs higher can be faster, but requires more VRAM. Only affects the TensorRT backend.
+        num_streams: Number of parallel GPU streams. For high end GPUs higher can be faster, but requires more VRAM. Only affects the DirectML and TensorRT backends.
+        gpu_id: GPU index ID starting with 0 for the first compatible GPU. For example to switch between iGPU/dGPU. Does not effect the CPU backend.
         engine_folder: Optional path to the TensorRT engine storage location. By default engines are stored in `vs_temporalfix/engines`. Only affects the TensorRT backend.
     """
     
+    if not isinstance(backend, str):
+        raise TypeError("vs_temporalfix: Backend must be a string.")
+    backend = backend.lower()
+    
     if backend in ["cpu", "cuda"]:
-        return _pytorch(clip, strength=strength, exclude=exclude, tiles=tiles, device=backend)
-    if backend in ["tensorrt", "trt"]:
-        return _tensorrt(clip, strength=strength, exclude=exclude, tiles=tiles, num_streams=num_streams, engine_folder=engine_folder)
-    raise ValueError("vs_temporalfix: Backend must be 'cpu', 'cuda', or 'tensorrt'.")
+        return _pytorch(clip, strength=strength, exclude=exclude, tiles=tiles, device=backend, gpu_id=gpu_id)
+    if backend in ["tensorrt", "trt", "directml", "dml"]:
+        return _vsmlrt(clip, strength=strength, exclude=exclude, tiles=tiles, backend=backend, num_streams=num_streams, gpu_id=gpu_id, engine_folder=engine_folder)
+    raise ValueError("vs_temporalfix: Backend must be CPU, CUDA, DirectML, or TensorRT.")

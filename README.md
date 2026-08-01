@@ -27,13 +27,21 @@ https://github.com/user-attachments/assets/13f05267-cd61-4de9-ad7f-ce8030102465
 
 ## Installation
 
+### Nvidia
 ```
-pip install -U vs_temporalfix --extra-index-url https://pypi.nvidia.com/
-```  
+pip install -U vs_temporalfix[tensorrt] --extra-index-url https://pypi.nvidia.com/
+```
 To enable the CPU/CUDA backends, install [PyTorch with CUDA](https://pytorch.org/get-started/locally/). *(optional)*  
+### Others
+```
+pip install -U vs_temporalfix
+```
+To enable the CPU backend, install [PyTorch](https://pytorch.org/get-started/locally/). *(optional)*  
+
+<br />
 
 > [!TIP]
-> For older VapourSynth versions below R74, follow the manual installation steps [here](https://github.com/pifroggi/vs_temporalfix/wiki/Manual-Installation).
+> For VapourSynth R73 and older, follow the [manual installation steps](https://github.com/pifroggi/vs_temporalfix/wiki/Manual-Installation).
 
 <br />
 
@@ -42,7 +50,7 @@ The newest and most capable version of temporalfix. It is easy to use and can ru
 
 ```python
 import vs_temporalfix
-clip = vs_temporalfix.model(clip, strength=2.0, exclude=None, backend="tensorrt", tiles=1, num_streams=1, engine_folder=None)
+clip = vs_temporalfix.model(clip, strength=2.0, exclude=None, backend="tensorrt", tiles=1, num_streams=1, gpu_id=0, engine_folder=None)
 ```
 
 __*`clip`*__  
@@ -60,7 +68,8 @@ __*`backend`* (optional)__
 The backend used to run the model:
 * `cpu` CPU mode using PyTorch *(very slow)*.
 * `cuda` GPU mode using PyTorch with CUDA support. Requires any Nvidia GPU *(fast)*.
-* `tensorrt` GPU mode using vs-mlrt with TensorRT support. Requires an Nvidia RTX GPU. On the first run, this mode will automatically build an engine, which may take a few minutes. Changing strength or input dimensions will trigger rebuilding, but previously build engines are stored *(very fast)*.
+* `directml` GPU mode using vs-mlrt with DirectML support. Works on most GPUs, but Windows only *(faster, high vram)*.
+* `tensorrt` GPU mode using vs-mlrt with TensorRT support. Requires an Nvidia RTX GPU. On the first run, this mode will automatically build an engine, which may take a few minutes. Changing strength or input dimensions will trigger rebuilding, but previously build engines are stored *(very fast, low vram)*.
 
 __*`tiles`* (optional)__  
 A higher amount of tiles will reduce VRAM usage at the cost of speed.  
@@ -68,6 +77,9 @@ This should only be needed on low end hardware. Default tiles=1 uses the full fr
 
 __*`num_streams`* (optional)__  
 Number of parallel TensorRT streams. For high end GPUs higher can be faster, but requires more VRAM. Only affects the TensorRT backend.
+
+__*`gpu_id`* (optional)__  
+Which GPU to use starting from 0. Can be used to switch between iGPU/dGPU. Does not affect the CPU backend.
 
 __*`engine_folder`* (optional)__  
 Optional path to the TensorRT engine storage location. By default engines are stored in `vs_temporalfix/engines`. Only affects the TensorRT backend.
@@ -124,11 +136,12 @@ Model benchmarks were done on a RTX 4090 GPU and Classic benchmarks on a Ryzen 5
 <table>
   <thead>
     <tr align="center">
-      <th colspan="3">AI Model</th>
+      <th colspan="4">AI Model</th>
     </tr>
     <tr align="center">
       <th>Resolution</th>
       <th>TensorRT</th>
+      <th>DirectML</th>
       <th>CUDA</th>
     </tr>
   </thead>
@@ -136,16 +149,19 @@ Model benchmarks were done on a RTX 4090 GPU and Classic benchmarks on a Ryzen 5
     <tr align="center">
       <td>720x480</td>
       <td>~320 fps</td>
+      <td>~160 fps</td>
       <td>~70 fps</td>
     </tr>
     <tr align="center">
       <td>1440x1080</td>
       <td>~80 fps</td>
+      <td>~50 fps</td>
       <td>~32 fps</td>
     </tr>
     <tr align="center">
       <td>2880x2160</td>
       <td>~20 fps</td>
+      <td>~14 fps</td>
       <td>~8 fps</td>
     </tr>
   </tbody>
