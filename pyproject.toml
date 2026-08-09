@@ -21,8 +21,13 @@ keywords = [
 	"deshimmer",
 	"denoising",
 	"upscaling",
+	"sisr",
+	"vsr",
 	"super resolution",
-	"filtering"
+	"tensorrt",
+	"directml",
+	"filtering",
+	"encoding"
 ]
 
 classifiers = [
