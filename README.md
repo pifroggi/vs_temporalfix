@@ -66,10 +66,10 @@ Brackets define excluded frame ranges. Example for two scenes: `exclude="[10 20]
 
 __*`backend`* (optional)__  
 The backend used to run the model:
-* `cpu` CPU mode using PyTorch *(very slow)*.
-* `cuda` GPU mode using PyTorch with CUDA support. Requires any Nvidia GPU *(fast)*.
-* `directml` GPU mode using vs-mlrt with DirectML support. Works on most GPUs, but Windows only *(faster, high vram)*.
-* `tensorrt` GPU mode using vs-mlrt with TensorRT support. Requires an Nvidia RTX GPU. On the first run, this mode will automatically build an engine, which may take a few minutes. Changing strength or input dimensions will trigger rebuilding, but previously build engines are stored *(very fast, low vram)*.
+* `cpu` CPU mode *(very slow)*.
+* `cuda` GPU mode using CUDA. Requires any Nvidia GPU *(fast)*.
+* `directml` GPU mode using DirectML. Works on most GPUs, but Windows only *(faster, high vram)*.
+* `tensorrt` GPU mode using TensorRT. Requires an Nvidia RTX GPU. On the first run, this mode will automatically build an engine, which may take a few minutes. Changing strength or input dimensions will trigger rebuilding, but previously build engines are stored *(very fast, low vram)*.
 
 __*`tiles`* (optional)__  
 A higher amount of tiles will reduce VRAM usage at the cost of speed.  
