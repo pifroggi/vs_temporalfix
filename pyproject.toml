@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vs_temporalfix"
-version = "2.3.0"
+version = "2.4.0"
 description = "Add Temporal Coherence to Single Image AI Upscales in VapourSynth."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -21,13 +21,19 @@ keywords = [
 	"deshimmer",
 	"denoising",
 	"upscaling",
+	"sisr",
+	"vsr",
 	"super resolution",
-	"filtering"
+	"tensorrt",
+	"directml",
+	"filtering",
+	"encoding"
 ]
 
 classifiers = [
 	"Programming Language :: Python :: 3",
-	"Topic :: Multimedia :: Video"
+	"Topic :: Multimedia :: Video",
+    "Environment :: GPU",
 ]
 
 dependencies = [
@@ -37,10 +43,16 @@ dependencies = [
 	"vapoursynth-zsmooth",
 	"vapoursynth-edgemasks",
 	"vapoursynth-mvutensils>=5",
-    "vapoursynth-mlrt-trt>=16.0",
-    "tensorrt-cu13>=11.1.0.106",
+	"vapoursynth-mlrt-ort; sys_platform == 'win32'",
     "numpy",
 	"onnx"
+]
+
+[project.optional-dependencies]
+tensorrt = [
+	"vapoursynth-mlrt-trt>=16.0; sys_platform == 'win32' or sys_platform == 'linux'",
+	"tensorrt-cu13>=11.1.0.106; sys_platform == 'win32' or sys_platform == 'linux'",
+	"cuda-python; sys_platform == 'win32' or sys_platform == 'linux'",
 ]
 
 [project.urls]

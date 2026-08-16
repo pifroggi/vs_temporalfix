@@ -252,7 +252,7 @@ def get_tiles(clip_w, clip_h, tiles, overlap=0):
         cols, rows = layout
         tile_w = math.ceil((clip_w + 2 * overlap * (cols - 1)) / cols)
         tile_h = math.ceil((clip_h + 2 * overlap * (rows - 1)) / rows)
-        return tile_w, tile_h
+        return tile_w + tile_w % 2, tile_h + tile_h % 2  # must be even
 
     def _layout_valid(layout):
         # tiles must have a positive non overlapped stride
@@ -282,10 +282,13 @@ def get_tiles(clip_w, clip_h, tiles, overlap=0):
 
     cols, rows = min(valid_layouts, key=_score)
     tile_w, tile_h = _tile_size((cols, rows))
+    if tile_w > 2.5 * tile_h or tile_h > 2.5 * tile_w:  # allow ultrawide
+        raise ValueError("vs_temporalfix: The current tile amount produces tiles that are too elongated. Try a different tile amount.")
+    
     return tile_w, tile_h, cols, rows
 
 
-def interpolate_onnx(onnx_path_lower, onnx_path_upper, save_path, weighting):
+def interpolate_onnx(onnx_path_lower, onnx_path_upper, save_path=None, weighting=0.5):
     # interpolate two onnx models
     import onnx
     import numpy as np
@@ -303,4 +306,34 @@ def interpolate_onnx(onnx_path_lower, onnx_path_upper, save_path, weighting):
             array_lerp  = (array_lower.astype(np.float32) * (1.0 - weighting) + array_upper.astype(np.float32) * weighting).astype(array_lower.dtype, copy=False)
             model_lower.graph.initializer[i].CopyFrom(numpy_helper.from_array(array_lerp, name=init_lower.name))
 
-    onnx.save_model(model_lower, save_path)
+    if save_path is not None:
+        onnx.save_model(model_lower, save_path)
+    return model_lower
+
+
+def split_gridsample(onnx_model):
+    # split gridsample from batch 6 into 6 batch 1 calls
+    from onnx import helper
+
+    target_name = "/aligner/GridSample_2"
+    parts       = 6
+    nodes       = list(onnx_model.graph.node)
+    node_idx    = next((i for i, node in enumerate(nodes) if node.name == target_name), -1)
+    if node_idx < 0:
+        raise RuntimeError(f"vs_temporalfix: Internal Error: Could not find node {target_name!r}.")
+
+    node         = nodes[node_idx]
+    input_parts  = [f"{target_name}/dml_input_batch_{i}" for i in range(parts)]
+    grid_parts   = [f"{target_name}/dml_grid_batch_{i}" for i in range(parts)]
+    output_parts = [f"{target_name}/dml_output_batch_{i}" for i in range(parts)]
+    replacement  = [
+        helper.make_node("Split", [node.input[0]], input_parts, name=f"{target_name}/DMLSplitInputBatch", axis=0, num_outputs=parts),
+        helper.make_node("Split", [node.input[1]], grid_parts, name=f"{target_name}/DMLSplitGridBatch", axis=0, num_outputs=parts),
+        *(helper.make_node("GridSample", [input_parts[i], grid_parts[i]], [output_parts[i]], name=f"{target_name}/DMLBatch_{i}", align_corners=0, mode="bilinear", padding_mode="zeros") for i in range(parts)),
+        helper.make_node("Concat", output_parts, [node.output[0]], name=f"{target_name}/DMLConcatBatch", axis=0),
+    ]
+
+    nodes[node_idx:node_idx + 1] = replacement
+    del onnx_model.graph.node[:]
+    onnx_model.graph.node.extend(nodes)
+    return onnx_model
