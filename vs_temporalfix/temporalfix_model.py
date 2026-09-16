@@ -43,6 +43,8 @@ def _pytorch(clip, strength=2.0, exclude=None, device="cuda", tiles=1, gpu_id=0)
         raise TypeError("vs_temporalfix: Clip must be a vapoursynth clip.")
     if clip.format.id == vs.PresetVideoFormat.NONE or clip.width == 0 or clip.height == 0:
         raise TypeError("vs_temporalfix: Clip must have constant format and dimensions.")
+    if vs.__version__.release_major >= 80 and clip.gpu_resident:
+        raise ValueError("vs_temporalfix: GPU based input clips are not supported yet. Please transfer the input clip to CPU first.")
     if clip.width % 2 != 0 or clip.height % 2 != 0:
         raise ValueError("vs_temporalfix: Clip dimensions must be even.")
     if clip.num_frames < 4:
@@ -288,6 +290,7 @@ def _build_engine_trtexec(onnx_path, engine_path, engine_w, engine_h, gpu_id, tr
         *(["--stronglyTyped"] if trt_version[0] < 11 else []),
         "--skipInference",
         "--memPoolSize=workspace:4096",
+        "--avgTiming=8",
         "--builderOptimizationLevel=3",
         f"--inputIOFormats={io_formats}",
         f"--outputIOFormats={io_formats}",
@@ -357,6 +360,7 @@ def _build_engine_python(onnx_path, engine_path, engine_w, engine_h, gpu_id, trt
         network.get_input(0).allowed_formats = network.get_output(0).allowed_formats = 1 << int(trt.TensorFormat.LINEAR)  # IOFormats:chw
         config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 4096 << 20)                                            # workspace:4096
         config.builder_optimization_level = 3                                                                             # builderOptimizationLevel=3
+        config.avg_timing_iterations = 8                                                                                  # avgTiming
 
         # build
         profile = builder.create_optimization_profile()
@@ -510,6 +514,8 @@ def _vsmlrt(clip, strength=2.0, exclude=None, backend="tensorrt", tiles=1, num_s
         raise TypeError("vs_temporalfix: Clip must be a vapoursynth clip.")
     if clip.format.id  == vs.PresetVideoFormat.NONE or clip.width  == 0 or clip.height  == 0:
         raise TypeError("vs_temporalfix: Clip must have constant format and dimensions.")
+    if vs.__version__.release_major >= 80 and clip.gpu_resident:
+        raise ValueError("vs_temporalfix: GPU based input clips are not supported yet. Please download the input clip to CPU first.")
     if clip.width % 2 != 0 or clip.height % 2 != 0:
         raise ValueError("vs_temporalfix: Clip dimensions must be even.")
     if clip.num_frames < 4:
@@ -562,7 +568,7 @@ def _vsmlrt(clip, strength=2.0, exclude=None, backend="tensorrt", tiles=1, num_s
     return exclude_regions(out, orig_clip, exclude=exclude)
 
 
-def model(clip, strength=2.0, exclude=None, backend="tensorrt", tiles=1, num_streams=1, gpu_id=0, engine_folder=None):
+def model(clip: vs.VideoNode, strength: float = 2.0, exclude: str | None = None, backend: str = "tensorrt", tiles: int = 1, num_streams: int = 1, gpu_id: int = 0, engine_folder: str | None = None) -> vs.VideoNode:
     """Add temporal coherence to single image AI upscaling models. Also known as temporal consistency, line wiggle fix, stabilization, deshimmering.
 
     Args:
@@ -572,10 +578,10 @@ def model(clip, strength=2.0, exclude=None, backend="tensorrt", tiles=1, num_str
         exclude: Optionally exclude scenes with intended temporal inconsistencies. Brackets define excluded frame ranges.
             Example for two scenes: `exclude="[10 20] [600 900]"`
         backend: The backend used to run the model.
-            - `cpu` = CPU mode using PyTorch (very slow).
-            - `cuda` = GPU mode using PyTorch with CUDA support. Requires any Nvidia GPU (fast).
-            - `directml` = GPU mode using vs-mlrt with DirectML support. Works on most GPUs, but Windows only (faster).
-            - `tensorrt` = GPU mode using vs-mlrt with TensorRT support. Requires an Nvidia RTX GPU (very fast).
+            - `cpu` = CPU mode (very slow).
+            - `cuda` = GPU mode using CUDA. Requires any Nvidia GPU (fast).
+            - `directml` = GPU mode using DirectML. Works on most GPUs, but Windows only (faster).
+            - `tensorrt` = GPU mode using TensorRT. Requires an Nvidia RTX GPU (very fast, low vram).
         tiles: A higher amount of tiles will reduce VRAM usage at the cost of speed.
             This should only be needed on low end hardware. `tiles=1` will use the full frame, which is fastest.
         num_streams: Number of parallel GPU streams. For high end GPUs higher can be faster, but requires more VRAM. Only affects the DirectML and TensorRT backends.
