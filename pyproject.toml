@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vs_temporalfix"
-version = "2.4.0"
+version = "2.4.1"
 description = "Add Temporal Coherence to Single Image AI Upscales in VapourSynth."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -59,3 +59,4 @@ tensorrt = [
 Homepage = "https://github.com/pifroggi/vs_temporalfix"
 Repository = "https://github.com/pifroggi/vs_temporalfix"
 Issues = "https://github.com/pifroggi/vs_temporalfix/issues"
+Changelog = "https://github.com/pifroggi/vs_temporalfix/releases"
