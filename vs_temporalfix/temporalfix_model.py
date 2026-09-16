@@ -414,10 +414,10 @@ def _get_engine(model_files, onnx_dir, engine_dir, strength, engine_w, engine_h,
         return engine_path
     
     # get plugin info
-    plugin_path = os.path.dirname(info["path"].decode(errors="ignore"))
-    trt_version = int(info["tensorrt_version"].decode(errors="ignore"))
+    plugin_path = os.path.dirname(os.fsdecode(info["path"]))
+    trt_version = int(os.fsdecode(info["tensorrt_version"]))
     trt_version = [trt_version // 10000, (trt_version % 10000) // 100, trt_version % 100]
-    cuda_major  = int(info["cuda_runtime_version"].decode(errors="ignore")) // 1000
+    cuda_major  = int(os.fsdecode(info["cuda_runtime_version"])) // 1000
     
     # interpolate onnx if needed
     if isinstance(onnx_path, list):
