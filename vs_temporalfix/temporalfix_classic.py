@@ -74,7 +74,7 @@ def _non_global_motion_mask(clip, downscale=320):
     return box_blur(mask, hradius=4, vradius=4, hpasses=2, vpasses=2)  # feather mask
 
 
-def classic(clip, strength=500, tr=6, denoise=False, exclude=None, debug=False):
+def classic(clip: vs.VideoNode, strength: int = 500, tr: int = 6, denoise: bool = False, exclude: str | None = None, debug: bool = False) -> vs.VideoNode:
     """Add temporal coherence to single image AI upscaling models. Also known as temporal consistency, line wiggle fix, stabilization, deshimmering. 
     This is the original CPU based version. It can run on any CPU, but is harder to tune, may miss some areas, and only works well for 2D animation. Check the 
     tips at the bottom for important usage information!
@@ -108,6 +108,8 @@ def classic(clip, strength=500, tr=6, denoise=False, exclude=None, debug=False):
         raise TypeError("vs_temporalfix: Clip must be a vapoursynth clip.")
     if clip.format.id == vs.PresetVideoFormat.NONE or clip.width == 0 or clip.height == 0:
         raise TypeError("vs_temporalfix: Clip must have constant format and dimensions.")
+    if vs.__version__.release_major >= 80 and clip.gpu_resident:
+        raise ValueError("vs_temporalfix: GPU based input clips are not supported. Please download the input clip to CPU first.")
     if not isinstance(strength, int):
         raise TypeError("vs_temporalfix: Strength must be an integer.")
     if strength < 0:
