@@ -46,7 +46,7 @@ To enable the CPU backend, install [PyTorch](https://pytorch.org/get-started/loc
 <br />
 
 ## TemporalFix AI Model
-The newest and most capable version of temporalfix. It is easy to use and can run very fast on Nvidia GPUs.
+The newest and most capable version of temporalfix. It is easy to use and can run very fast on modern GPUs.
 
 ```python
 import vs_temporalfix
